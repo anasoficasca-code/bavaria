@@ -13,19 +13,36 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
       - name: Check JavaScript syntax
-        run: node --input-type=module --check < app.js
-      - uses: actions/configure-pages@v5
-      - name: Prepare only public website files
         run: |
-          mkdir -p public/data
-          cp index.html style.css app.js icon.svg .nojekyll public/
+          node --input-type=module --check < app.js
+          node --input-type=module --check < vendor/bavaria.js
+          node --input-type=module --check < vendor/real3d.js
+      - uses: actions/configure-pages@v5
+      - name: Prepare website
+        run: |
+          mkdir -p public/data public/vendor
+          cp index.html style.css app.js icon.svg .nojekyll CREDITOS.txt public/
           cp data/*.json public/data/
+          cp vendor/*.js public/vendor/
+      - name: Install browser test tools
+        run: |
+          npm install --no-save --package-lock=false playwright
+          npx playwright install --with-deps chromium
+      - name: Verify WebGL and interactions
+        run: node .github/scripts/smoke.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: browser-previews
+          path: bavaria-*.png
+          if-no-files-found: ignore
       - uses: actions/upload-pages-artifact@v3
         with:
           path: public
