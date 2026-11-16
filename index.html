@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#eae7df"><meta name="description" content="Bavaria 1: una nueva vida para el patrimonio industrial. Explora el proyecto y sus recorridos en una maqueta 3D interactiva.">
+<title>Bavaria 1 — Territorio en común</title>
+<link rel="icon" href="./icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="./style.css">
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}</script>
+</head>
+<body>
+<a class="skip" href="#controls">Ir a los controles</a>
+<div id="viewport" role="region" aria-label="Maqueta tridimensional interactiva de Bavaria"></div>
+<header><a class="brand" href="./" aria-label="Bavaria 1, inicio"><img src="./icon.svg" alt="" width="42" height="42"><span>BAVARIA<sup>1</sup></span></a><nav aria-label="Secciones"><a href="#proyecto" id="about">El proyecto ↗</a><a href="https://anasoficasca-code.github.io/simulador/" target="_blank" rel="noopener">Simulador Kennedy ↗</a></nav><span class="place">BOGOTÁ, COLOMBIA<br>UN TERRITORIO EN COMÚN</span></header>
+<main>
+<section class="intro" id="intro"><p class="eyebrow"><span></span> PATRIMONIO · NATURALEZA · COMUNIDAD</p><h1>Otra forma<br>de <em>habitar.</em></h1><p class="lede">Una nueva vida para Bavaria.<br>Un lugar donde el barrio, el bosque<br>y la producción vuelven a encontrarse.</p><button class="primary" id="explore">Explorar el territorio <span>↗</span></button><p class="edition">01 / BAVARIA COMÚN<br>MODELAMIENTO Y SIMULACIÓN</p></section>
+<aside id="detail" class="detail" hidden aria-labelledby="detail-title"><button id="close-detail" class="close" aria-label="Cerrar detalle">×</button><p class="eyebrow" id="detail-number">EL PROYECTO</p><h2 id="detail-title">Un territorio que vuelve a conectar.</h2><p id="detail-text">La antigua fábrica se explora como un lugar de producción local, aprendizaje y encuentro. Recuperar sus edificios, cuidar el bosque y llevar el abastecimiento a la escala del barrio.</p><p class="small">Propuesta académica · Hipótesis de diseño</p></aside>
+<div class="north" aria-hidden="true">N<br>↑</div><div id="status" class="status" role="status">Preparando el territorio 3D…</div>
+<div class="scene-caption"><span class="dot"></span> BAVARIA COMÚN <span class="caption-divider">/</span> <span id="view-name">VISTA GENERAL</span></div>
+<section class="controls" id="controls" aria-label="Controles del territorio"><div class="view-buttons"><button id="home" title="Volver a la vista general" aria-label="Vista general">⌂</button><button id="tour" aria-pressed="false">Recorrido <span>↻</span></button><button id="night" aria-pressed="false">Noche <span>◐</span></button></div><div class="traffic-controls"><button id="pause" aria-pressed="false">Pausar carros Ⅱ</button><label for="speed">Velocidad <output id="speed-value">1×</output></label><input id="speed" type="range" min="0.25" max="3" step="0.25" value="1"></div><p>Arrastra para girar · Rueda para acercar<br><span>Botón derecho para desplazar · Toca un edificio</span></p></section>
+<div id="fallback" hidden><h2>No se pudo abrir la vista 3D.</h2><p id="error-text">Revisa tu conexión y que tu navegador permita WebGL.</p><button id="retry">Volver a intentar</button><a href="https://anasoficasca-code.github.io/simulador/">Abrir el simulador original ↗</a></div>
+</main>
+<footer><span>UNA PROPUESTA PARA REENCONTRARNOS.</span><span>MAQUETA DE ESTUDIO · RECORRIDOS CONCEPTUALES</span><a href="https://github.com/anasoficasca-code/bavaria">PROYECTO ABIERTO ↗</a></footer>
+<script type="module">import('./app.js').catch(error => { document.getElementById('fallback').hidden=false; document.getElementById('status').textContent='Vista 3D no disponible'; console.error(error); });document.getElementById('retry').onclick=()=>location.reload();</script>
+</body></html>
