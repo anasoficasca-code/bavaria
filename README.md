@@ -1,23 +1,26 @@
-# Bavaria 1
+# Bavaria 1 — Un territorio vivo
 
-Experiencia web independiente para explorar la propuesta Bavaria Común del simulador Kennedy.
+Visor a pantalla completa basado en los recursos reales de [simulador Kennedy](https://github.com/anasoficasca-code/simulador). Referencia de presentación: Skolkovo for Business. No utiliza los renders ni modelos de ese proyecto.
 
-Sitio estático con Three.js: cámara orbital, edificios seleccionables, bosque, vehículos animados, modos día/noche y recorrido automático.
+## Qué se reutiliza
 
-## Desarrollo
+- `vendor/bavaria.js`: geometría industrial original, incluyendo esqueletos estructurales, fachadas, silos y cubiertas; se integran las texturas PBR fotográficas del simulador.
+- `vendor/real3d.js`: árboles escaneados, niveles de detalle y flota original. Los GLB se descargan desde el simulador.
+- `data/bavaria.json` y `data/trees.json`: huellas y posiciones originales del predio.
+- `data/roads.json`: selección local de la red vial `data3d/net.json`.
+- Grabación de tráfico SUMO `data3d/traf/c10.bin`: posiciones interpoladas, sin inventar recorridos dentro del predio.
+- Integración de Google Photorealistic 3D Tiles del simulador, con la misma georreferencia y atribución dinámica. Requiere acceso al servicio del proyecto original. Su clave pública de navegador ya forma parte del simulador y debe mantenerse restringida al dominio autorizado desde Google Cloud; nunca se utiliza un token de GitHub en el sitio.
 
-Servir esta carpeta con un servidor HTTP, por ejemplo `python -m http.server 8000`, y abrir http://localhost:8000. No requiere compilación. Three.js se descarga desde jsDelivr (versión fijada).
+## Vistas
 
-## Publicación
+**Territorio real** muestra la capa fotográfica 3D cuando el servicio responde. **Modelo del proyecto** muestra la arquitectura y los árboles originales; no es una fotografía de una propuesta construida. Si el servicio fotográfico falla, el visor lo indica y mantiene disponible el modelo. No se promete que sus activos equivalgan a los renders de Skolkovo.
 
-En Settings → Pages → Build and deployment → Source, seleccionar GitHub Actions. El workflow .github/workflows/pages.yml comprueba la sintaxis JavaScript y publica solo los archivos públicos del sitio con cada push a main. Si el primer intento falla porque Pages aún no estaba habilitado, volver a ejecutar Publish Bavaria en Actions. El sitio esperado es https://anasoficasca-code.github.io/bavaria/ cuando GitHub confirme el despliegue.
+Cámara libre, tres encuadres, selección de edificios, recorrido orbital, pausa y velocidad de los carros. Los carros conservan las trayectorias del registro original; su altura usa el plano de referencia del simulador y requiere revisión visual sobre la fotogrametría.
 
-## Datos y alcance
+## Desarrollo y publicación
 
-Huellas de edificios y arbolado procedentes de anasoficasca-code/simulador (data3d/bavaria.json y bavaria_arboles.json). Se conservan en data/ para que esta web sea independiente. El arbolado del origen se interpreta desde imagen Esri; consultar la nota de ese archivo. Los usos propuestos son hipótesis de diseño del módulo bavaria_plan.js. La representación es una maqueta de estudio: no una captura fotorrealista ni una simulación de tránsito calibrada. Los vehículos ilustran recorridos conceptuales, sin representar indicadores medidos.
+Servir el repositorio por HTTP, por ejemplo `python -m http.server 8000`. No necesita compilación. Los modelos y texturas dependen del sitio original; este repositorio no duplica los binarios.
 
-Autoría del simulador original: Ana Sofía Casas, Alejandra Gómez y Juan José Trujillo. Revisar los permisos de los datos y recursos originales antes de su redistribución externa.
+GitHub Pages usa **Settings → Pages → Source: GitHub Actions**. El workflow comprueba sintaxis y ejecuta Chromium con WebGL antes de desplegar. Verifica árboles, tráfico y controles, y guarda capturas de escritorio y móvil como artefacto `browser-previews`.
 
-## Verificación inicial
-
-Se comprobó la sintaxis de app.js, la unicidad de los IDs HTML y la estructura numérica de las 29 huellas y los 3250 árboles. No se ha ejecutado una prueba visual en navegador; revisar el diseño, el rendimiento WebGL y el despliegue antes de considerar la versión final.
+Créditos completos en [CREDITOS.txt](CREDITOS.txt). Autoría del simulador original: Ana Sofía Casas, Alejandra Gómez y Juan José Trujillo.
