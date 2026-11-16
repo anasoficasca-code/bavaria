@@ -36,6 +36,7 @@ const skyU = {
             c += vec3(1.0, 0.74, 0.46) * pow(sunAmt, 5.0) * 0.16 * (1.0 - smoothstep(0.0, 0.45, h)) * uGlow; // horizonte más cálido del lado del sol
             c = mix(c, c * vec3(0.93, 0.97, 1.04), smoothstep(0.3, 0.9, h) * 0.5); // cenit algo más frío y profundo
             gl_FragColor = vec4(c, 1.0);
+            #include <colorspace_fragment>
           }`
       })
     );
