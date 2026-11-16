@@ -1,0 +1,19 @@
+name: Visual reference capture
+on:
+  push:
+    paths:
+      - '.github/scripts/capture.cjs'
+      - '.github/workflows/visual-capture.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          npm install --no-save --package-lock=false playwright
+          npx playwright install --with-deps chromium
+      - run: node .github/scripts/capture.cjs
