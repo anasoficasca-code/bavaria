@@ -8,7 +8,7 @@ const {chromium}=require('playwright');
  const browser=await chromium.launch({headless:true,args:['--enable-webgl','--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
  try{
  const page=await browser.newPage({viewport:{width:1440,height:900},deviceScaleFactor:1});const errors=[];
- page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error'&&/Shader Error|VALIDATE_STATUS|WebGLProgram/.test(m.text()))errors.push(m.text());});
+ page.on('pageerror',e=>{errors.push(e.message);console.log('BROWSER_ERROR '+e.message)});page.on('console',m=>{if(m.type()==='error'&&/Shader Error|VALIDATE_STATUS|WebGLProgram/.test(m.text()))errors.push(m.text());});
  await page.goto(process.env.SITE_URL||'http://127.0.0.1:4173/',{waitUntil:'domcontentloaded',timeout:60000});
  await page.waitForFunction(()=>window.__BAVARIA?.ready,{timeout:90000});
  await page.waitForFunction(()=>window.__BAVARIA?.treesReady&&window.__BAVARIA?.trafficReady&&window.__BAVARIA.frames>10,{timeout:120000});
@@ -17,7 +17,7 @@ const {chromium}=require('playwright');
  const a=await page.evaluate(()=>window.__BAVARIA);assert.ok(a.vehicles>0,'Original SUMO trajectories must produce visible vehicles');
  await page.locator('#pause').click();assert.equal(await page.locator('#pause').getAttribute('aria-pressed'),'true');
  await page.locator('#speed').fill('2');
- await page.locator('#forest-view').click();await page.waitForTimeout(2800);
+ await page.locator('#forest-view').click();await page.waitForTimeout(2800);console.log('FOREST_STATE '+JSON.stringify(await page.evaluate(()=>window.__BAVARIA)));
  await page.locator('#about').click();assert.equal(await page.locator('#detail').isVisible(),true);await page.keyboard.press('Escape');assert.equal(await page.locator('#detail').isVisible(),false);
  await page.screenshot({path:'bavaria-desktop.png'});
  await page.locator('#photo').click();await page.waitForTimeout(12000);
