@@ -125,7 +125,7 @@ async function init(){
  if(move){move.time+=dt;const t=Math.min(1,move.time/2.4),e=t*t*(3-2*t);camera.position.lerpVectors(move.from,move.to,e);orbit.target.lerpVectors(move.fromTarget,move.toTarget,e);if(t===1)move=null;}
  orbit.update();camera.updateMatrixWorld();
  if(tiles){tiles.setResolutionFromRenderer(camera,renderer);tiles.update();if(now-lastAttrib>1800){lastAttrib=now;try{const a=tiles.getAttributions().filter(a=>a.type==='string').map(a=>a.value).join(' · ');$('attribution').textContent=photoAvailable?'Google'+(a?' · '+a:''):'';}catch{} }}
- if(trees&&model.visible&&frame%8===0){camera.getWorldDirection(camDirection);trees.update({position:orbit.target,cam:camera.position,dir:camDirection});}
+ if(trees&&model.visible&&frame%8===0){camera.getWorldDirection(camDirection);trees.update({position:camera.position,cam:camera.position,dir:camDirection});}
  updateTraffic(dt);
  markers.forEach(m=>{const p=m.point.clone().project(camera),visible=p.z<1&&p.z>-1&&Math.abs(p.x)<.96&&Math.abs(p.y)<.9;m.el.hidden=!visible;m.el.style.left=((p.x*.5+.5)*innerWidth)+'px';m.el.style.top=((-p.y*.5+.5)*innerHeight)+'px';});
  renderer.render(scene,camera);api.frames=frame;api.drawCalls=renderer.info.render.calls;
