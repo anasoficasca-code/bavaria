@@ -133,12 +133,12 @@ async function init(){
  const visible=tiles.visibleTiles?.size||0;api.visibleTiles=visible;
  const age=now-photoStarted;
  tiles.errorTarget=age<3500?48:age<8000?24:mobile?12:5;
- api.photoStage=photoAvailable?(tiles.downloadQueue?.items?.length?'refining':'visible'):'streaming';
+ api.photoPending=(tiles.stats?.downloading||0)+(tiles.stats?.parsing||0);api.photoStage=photoAvailable?(api.photoPending?'refining':'visible'):'streaming';
  if(!photoAvailable&&visible>=4&&loadedTiles>=8&&age>2500){
   photoAvailable=true;api.photoReady=true;photoSettledAt=now;setMode(wantPhoto);report('');
  }
- api.photoSettled=photoAvailable&&now-lastModel>1500&&now-photoSettledAt>3500;
- if(now-lastAttrib>1800){lastAttrib=now;try{const a=tiles.getAttributions().filter(a=>a.type==='string').map(a=>a.value).join(' · ');$('attribution').textContent=photoAvailable?'Google'+(a?' · '+a:''):'© Esri · Imagen satelital';}catch{} }}
+ api.photoSettled=photoAvailable&&api.photoPending===0&&now-lastModel>1500&&now-photoSettledAt>3500;
+ if(now-lastAttrib>1800){lastAttrib=now;try{const a=tiles.getAttributions().filter(a=>a.type==='string').map(a=>a.value).join(' · ');$('attribution').textContent=photoAvailable?'Google'+(a?' · '+a:'')+(api.mode==='model'?' · © Esri':''):'© Esri · Imagen satelital';}catch{} }}
  if(trees&&model.visible&&frame%8===0){camera.getWorldDirection(camDirection);trees.update({position:camera.position,cam:camera.position,dir:camDirection});}
  updateTraffic(dt);
  markers.forEach(m=>{const p=m.point.clone().project(camera),visible=p.z<1&&p.z>-1&&Math.abs(p.x)<.96&&Math.abs(p.y)<.9;m.el.hidden=!visible;m.el.style.left=((p.x*.5+.5)*innerWidth)+'px';m.el.style.top=((-p.y*.5+.5)*innerHeight)+'px';});
