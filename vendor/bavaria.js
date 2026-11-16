@@ -20,7 +20,9 @@ export function construirBavaria({ THREE, T3, lw, D, liviano }) {
   }
   const texL = new THREE.CanvasTexture(cv); texL.wrapS = texL.wrapT = THREE.RepeatWrapping; texL.colorSpace = THREE.SRGBColorSpace;
   texL.anisotropy = T3.renderer.capabilities.getMaxAnisotropy();
-  const matLadrillo = new THREE.MeshStandardMaterial({ map: texL, roughness: 0.92, metalness: 0, side: THREE.DoubleSide });
+  const textureLoader = new THREE.TextureLoader();
+  const load = (name, color = false) => { const t = textureLoader.load('https://anasoficasca-code.github.io/simulador/data3d/textures/' + name + '.jpg'); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(.28,.28); if (color) t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = Math.min(T3.renderer.capabilities.getMaxAnisotropy(),8); return t; };
+  const matLadrillo = new THREE.MeshStandardMaterial({ map: load('ladrillo_color',true), normalMap:load('ladrillo_normal'), normalScale:new THREE.Vector2(.45,.45),roughnessMap:load('ladrillo_rugosidad'), roughness: 0.92, metalness: 0, side: THREE.DoubleSide });
   const matConcreto = new THREE.MeshStandardMaterial({ color: 0xb3aca2, roughness: 0.95, metalness: 0 }); // concreto envejecido, claro como en el video
   const matCubierta = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, metalness: 0.05, side: THREE.DoubleSide }); // cada cubierta con su color de la foto satelital
   const matPintado = new THREE.MeshStandardMaterial({ color: 0xe6e2d8, roughness: 0.85, metalness: 0, side: THREE.DoubleSide }); // muros pintados de blanco (nave grande y silos)
