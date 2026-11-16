@@ -418,9 +418,9 @@ export async function buildTrees(T3, T, W, lw, env, Pq, Net) {
   }
   // L0 modelo real completo (cerca) · L1 modelo real reducido (medio) · L2 arbol 3D de bajos poligonos (lejos) · siluetas sólo más allá de R2 o si se llena el cupo
   // la versión ligera (gafas VR, celulares: T3.liviano) usa menos árboles detallados y copas más simples; la completa muestra más modelos reales
-  const KA = !!T3.kenArboles, LV = !!T3.liviano, CAP2 = LV ? 5000 : 10000, R0 = MV ? 0 : LV ? 40 : KA ? 220 : 100, R1 = MV ? (KA ? 380 : 260) : LV ? 400 : KA ? 450 : 1000, OSC = KA ? 0.74 : 1, /* Kennedy: reales hasta 900 m, más oscuros (igual de cerca y de lejos) */ /* Kennedy: reales hasta 420 m (más oscuros); más lejos, copas tipo splat (arboles_splat.js) */ R2 = LV ? 1200 : 2200, d = new THREE.Object3D(), col = new THREE.Color();
-  const CAP0S = especies.map(e => MV ? 1 : e.base === 'arbolpeq' ? (LV ? 4 : 10) : (LV ? 10 : KA ? 64 : 32)); // el arbolpeq tiene 83.000 triángulos en el nivel 0
-  const CAP1S = especies.map(e => MV ? (e.base === 'arbolpeq' ? 25 : 90) : e.base === 'arbolpeq' ? (LV ? 40 : KA ? 80 : 200) : (LV ? 240 : KA ? 600 : 1100)); // el arbolpeq tiene 14.000 triángulos en el nivel 1: menos copias
+  const KA = !!T3.kenArboles, LV = !!T3.liviano, CAP2 = LV ? 5000 : 10000, R0 = MV ? 0 : LV ? 35 : 75, R1 = MV ? 140 : LV ? 160 : 230, OSC = KA ? 0.74 : 1, /* Kennedy: reales hasta 900 m, más oscuros (igual de cerca y de lejos) */ /* Kennedy: reales hasta 420 m (más oscuros); más lejos, copas tipo splat (arboles_splat.js) */ R2 = LV ? 1200 : 2200, d = new THREE.Object3D(), col = new THREE.Color();
+  const CAP0S = especies.map(e => MV ? 1 : e.base === 'arbolpeq' ? 3 : 8); // Close scans only; farther trees retain their photographed silhouettes.
+  const CAP1S = especies.map(e => MV ? 12 : e.base === 'arbolpeq' ? 16 : 36); // Bound geometry work while preserving all original tree positions.
   const TIPO_BAJO = especies.map(e => (e.base === 'arbolpeq' || e.base === 'island_tree_02') ? 1 : 0);
   const matBajo = materialArbolBajo(T3), REF = [0.17, 0.255, 0.0875]; // REF = verde medio del degradado de vértices
   const USAR_BAJOS = false; // las copas de bajos polígonos se veían como bolas verdes al alejar la cámara: lejos ahora se dibuja el mismo árbol real (fotos desde el lado y desde arriba)
