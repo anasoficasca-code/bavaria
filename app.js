@@ -17,7 +17,7 @@ const textureLoader=new THREE.TextureLoader(),pickRay=new THREE.Raycaster(),ndc=
 const views=[
  {title:'El territorio',p:[510,310,550],t:[-70,18,-45]},
  {title:'Patrimonio industrial',p:[-470,125,280],t:[-115,12,-140]},
- {title:'El bosque',p:[430,90,310],t:[210,15,90]}
+ {title:'El bosque',p:[355,24,180],t:[245,10,60]}
 ];
 function report(message){$('status').textContent=message;}
 function texture(name,repeat=1,normal=false){const tex=textureLoader.load(ROOT+'data3d/textures/'+name+'.jpg',undefined,undefined,()=>api.errors.push('texture:'+name));tex.wrapS=tex.wrapT=THREE.RepeatWrapping;tex.repeat.set(repeat,repeat);if(!normal)tex.colorSpace=THREE.SRGBColorSpace;tex.anisotropy=Math.min(renderer.capabilities.getMaxAnisotropy(),8);return tex;}
@@ -163,7 +163,7 @@ async function init(){
  hotspots(data);api.ready=true;report('Cargando arbolado 3D…');$('loading').classList.add('done');setTimeout(()=>$('loading').hidden=true,650);
  sceneData=data;if(wantPhoto)setMode(true);
  loadTraffic().catch(e=>{api.errors.push(e.message);$('pause').disabled=true;$('pause').textContent='Tráfico no disponible'});
- buildTrees(T3,{t:forest.arboles},[],lw,scene.environment,[],null).then(t=>{trees=t;api.treesReady=true;setMode(wantPhoto);if(!wantPhoto)report('');}).catch(e=>{api.errors.push('trees:'+e.message);report('El arbolado no pudo cargarse. Recarga para intentarlo de nuevo.');});
+ buildTrees(T3,{t:forest.arboles},[],lw,scene.environment,[],null).then(t=>{trees=t;api.treesReady=true;api.treeSpecies=t.especies;api.treeCount=t.N;api.treeViewAngles=32;setMode(wantPhoto);if(!wantPhoto)report('');}).catch(e=>{api.errors.push('trees:'+e.message);report('El arbolado no pudo cargarse. Recarga para intentarlo de nuevo.');});
  const camDirection=new THREE.Vector3();$('attribution').textContent='© Esri · Imagen satelital';
  renderer.setAnimationLoop(now=>{
  if(document.hidden){last=now;return;}
@@ -180,7 +180,7 @@ async function init(){
  }
  api.photoSettled=photoAvailable&&api.photoPending===0&&now-lastModel>1500&&now-photoSettledAt>3500;
  if(now-lastAttrib>1800){lastAttrib=now;try{const a=tiles.getAttributions().filter(a=>a.type==='string').map(a=>a.value).join(' · ');$('attribution').textContent=photoAvailable?'Google'+(a?' · '+a:'')+(api.mode==='model'?' · © Esri':''):'© Esri · Imagen satelital';}catch{} }}
- if(trees&&model.visible&&frame%4===0){camera.getWorldDirection(camDirection);trees.update({position:camera.position,cam:camera.position,dir:camDirection});}
+ if(trees&&model.visible&&frame%4===0){camera.getWorldDirection(camDirection);trees.update({position:camera.position,cam:camera.position,dir:camDirection});api.treeDetail=trees.stats;}
  updateTraffic(dt);
  markers.forEach(m=>{const p=m.point.clone().project(camera),visible=p.z<1&&p.z>-1&&Math.abs(p.x)<.96&&Math.abs(p.y)<.9;m.el.hidden=!visible;m.el.style.left=((p.x*.5+.5)*innerWidth)+'px';m.el.style.top=((-p.y*.5+.5)*innerHeight)+'px';});
  renderer.render(scene,camera);api.frames=frame;api.drawCalls=renderer.info.render.calls;
