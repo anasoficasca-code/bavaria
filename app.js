@@ -10,7 +10,7 @@ const CX=9350,CY=3000,lw=(x,y)=>[x-CX,CY-y];
 const api={ready:false,treesReady:false,photoReady:false,trafficReady:false,errors:[],mode:'model'};
 window.__BAVARIA=api;
 let scene,renderer,camera,orbit,T3,trees,fleet,tiles,model,ground,architecture,environment;
-let photoAvailable=false,wantPhoto=true,paused=reduced,velocity=1,elapsed=1000,last=performance.now(),lastAttrib=0,loadedTiles=0,lastModel=0;
+let photoAvailable=false,wantPhoto=false,paused=reduced,velocity=1,elapsed=1000,last=performance.now(),lastAttrib=0,loadedTiles=0,lastModel=0;
 let move=null,frame=0,photoFailure=false,photoStarted=0,photoSettledAt=0;const picks=[],markers=[],directions=new Map(),steps=[];
 const textureLoader=new THREE.TextureLoader(),pickRay=new THREE.Raycaster(),ndc=new THREE.Vector2(),projectUniform={value:0};
 const views=[
@@ -28,11 +28,11 @@ function setMode(photo){
  wantPhoto=photo;const usePhoto=photo&&photoAvailable;api.mode=usePhoto?'photo':'model';
  if(environment)environment.setPhotographic(usePhoto);
  if(model)model.visible=!usePhoto;if(trees)trees.ver(!usePhoto);
- if(tiles)tiles.group.visible=photoAvailable;
+ if(tiles)tiles.group.visible=usePhoto;
  projectUniform.value=usePhoto?0:1;
  $('photo').classList.toggle('selected',usePhoto);$('photo').setAttribute('aria-pressed',String(usePhoto));$('model').classList.toggle('selected',!usePhoto);$('model').setAttribute('aria-pressed',String(!usePhoto));
  $('mode-status').textContent=usePhoto?'TERRITORIO FOTOGRÁFICO 3D':'ARQUITECTURA + ÁRBOLES DEL SIMULADOR';
- if(!photoAvailable&&photo)report(photoFailure?'La foto 3D no respondió. Se muestra el modelo original.':'Cargando territorio fotográfico 3D…');
+ if(!photoAvailable&&photo)report(photoFailure?'El territorio 3D sigue cargando. Puedes explorar el modelo.':'Cargando territorio fotográfico 3D…');
 }
 function buildMask(data){
  const c=document.createElement('canvas');c.width=c.height=1024;const ctx=c.getContext('2d');ctx.fillStyle='#000';ctx.fillRect(0,0,1024,1024);ctx.fillStyle='#fff';ctx.beginPath();data.sitio.forEach((p,i)=>{const q=lw(...p),x=(q[0]+800)/1600*1024,y=(q[1]+800)/1600*1024;i?ctx.lineTo(x,y):ctx.moveTo(x,y)});ctx.closePath();ctx.fill();const t=new THREE.CanvasTexture(c);t.flipY=false;return t;
@@ -134,7 +134,7 @@ async function init(){
  const age=now-photoStarted;
  tiles.errorTarget=mobile?12:5;
  api.photoPending=(tiles.stats?.downloading||0)+(tiles.stats?.parsing||0);api.photoStage=photoAvailable?(api.photoPending?'refining':'visible'):'streaming';
- if(!photoAvailable&&visible>=12&&loadedTiles>=24&&age>8000&&now-lastModel>800){
+ if(!photoAvailable&&visible>=12&&loadedTiles>=100&&api.photoPending===0&&age>8000&&now-lastModel>1500){
   photoAvailable=true;api.photoReady=true;photoSettledAt=now;setMode(wantPhoto);report('');
  }
  api.photoSettled=photoAvailable&&api.photoPending===0&&now-lastModel>1500&&now-photoSettledAt>3500;
