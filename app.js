@@ -10,6 +10,7 @@ const CX=9350,CY=3000,lw=(x,y)=>[x-CX,CY-y];
 const api={ready:false,treesReady:false,photoReady:false,trafficReady:false,errors:[],mode:'model'};
 window.__BAVARIA=api;
 let scene,renderer,camera,orbit,T3,trees,fleet,tiles,model,ground,architecture,environment;
+let sceneData=null,photoLoading=false;
 let photoAvailable=false,wantPhoto=false,paused=reduced,velocity=1,elapsed=1000,last=performance.now(),lastAttrib=0,loadedTiles=0,lastModel=0;
 let move=null,frame=0,photoFailure=false,photoStarted=0,photoSettledAt=0;const picks=[],markers=[],directions=new Map(),steps=[];
 const textureLoader=new THREE.TextureLoader(),pickRay=new THREE.Raycaster(),ndc=new THREE.Vector2(),projectUniform={value:0};
@@ -65,7 +66,7 @@ function reveal(title,text,label='BAVARIA COMÚN'){$('detail-title').textContent
 function explore(){document.body.classList.add('exploring');$('hero').classList.add('hidden');}
 function fly(index,instant=false){const v=views[index];if(!v)return;move=null;orbit.autoRotate=false;$('tour').setAttribute('aria-pressed','false');document.querySelectorAll('[data-view]').forEach(b=>b.classList.toggle('active',Number(b.dataset.view)===index));if(instant||reduced){camera.position.fromArray(v.p);orbit.target.fromArray(v.t);orbit.update();}else move={time:0,from:camera.position.clone(),to:new THREE.Vector3(...v.p),fromTarget:orbit.target.clone(),toTarget:new THREE.Vector3(...v.t)};if(index>0)explore();}
 function setMode(photo){
- wantPhoto=photo;const usePhoto=photo&&photoAvailable;api.mode=usePhoto?'photo':'model';
+ wantPhoto=photo;if(photo&&sceneData&&!photoLoading){photoLoading=true;setupPhoto(sceneData);}const usePhoto=photo&&photoAvailable;api.mode=usePhoto?'photo':'model';
  if(environment)environment.setPhotographic(usePhoto);
  if(model)model.visible=!usePhoto;if(trees)trees.ver(!usePhoto);
  if(tiles)tiles.group.visible=usePhoto;
@@ -159,10 +160,10 @@ async function init(){
  const asphalt=new THREE.MeshStandardMaterial({color:'#585b57',map:texture('via_color',1),normalMap:texture('via_normal',1,true),roughness:.92,side:THREE.DoubleSide});
  const roadGeometries=[];roads.edges.forEach(([type,points])=>{const width=type==='major'?8:type==='mid'?5:3;const pos=[],uv=[];for(let i=0;i<points.length-1;i++){const a=lw(...points[i]),b=lw(...points[i+1]);if(Math.min(Math.hypot(...a),Math.hypot(...b))>850)continue;const dx=b[0]-a[0],dz=b[1]-a[1],len=Math.hypot(dx,dz);if(len<.1)continue;const nx=-dz/len*width,nz=dx/len*width;const v=[[a[0]+nx,.02,a[1]+nz],[a[0]-nx,.02,a[1]-nz],[b[0]+nx,.02,b[1]+nz],[b[0]-nx,.02,b[1]-nz]];for(const j of[0,1,2,2,1,3]){pos.push(...v[j]);uv.push(j%2,len*(j>1?1:0)/8);}}if(!pos.length)return;const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));g.computeVertexNormals();roadGeometries.push(g)});if(roadGeometries.length){const merged=mergeGeometries(roadGeometries);const roadMesh=new THREE.Mesh(merged,asphalt);roadMesh.receiveShadow=true;model.add(roadMesh);roadGeometries.forEach(g=>g.dispose());}
  fleet=createFleet({...T3,scene},scene.environment);fleet.setNear(650);
- hotspots(data);api.ready=true;report('Cargando árboles y territorio fotográfico…');$('loading').classList.add('done');setTimeout(()=>$('loading').hidden=true,650);
- setupPhoto(data);
+ hotspots(data);api.ready=true;report('Cargando arbolado 3D…');$('loading').classList.add('done');setTimeout(()=>$('loading').hidden=true,650);
+ sceneData=data;if(wantPhoto)setMode(true);
  loadTraffic().catch(e=>{api.errors.push(e.message);$('pause').disabled=true;$('pause').textContent='Tráfico no disponible'});
- buildTrees(T3,{t:forest.arboles},[],lw,scene.environment,[],null).then(t=>{trees=t;api.treesReady=true;setMode(wantPhoto);}).catch(e=>{api.errors.push('trees:'+e.message);report('El arbolado no pudo cargarse. Recarga para intentarlo de nuevo.');});
+ buildTrees(T3,{t:forest.arboles},[],lw,scene.environment,[],null).then(t=>{trees=t;api.treesReady=true;setMode(wantPhoto);if(!wantPhoto)report('');}).catch(e=>{api.errors.push('trees:'+e.message);report('El arbolado no pudo cargarse. Recarga para intentarlo de nuevo.');});
  const camDirection=new THREE.Vector3();$('attribution').textContent='© Esri · Imagen satelital';
  renderer.setAnimationLoop(now=>{
  if(document.hidden){last=now;return;}
