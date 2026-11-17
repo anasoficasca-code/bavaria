@@ -22,7 +22,7 @@ const {chromium}=require('playwright');
  const a=await page.evaluate(()=>window.__BAVARIA);assert.ok(a.vehicles>0,'Original SUMO trajectories must produce visible vehicles');
  await page.locator('#pause').click();assert.equal(await page.locator('#pause').getAttribute('aria-pressed'),'true');
  await page.locator('#speed').fill('2');
- await page.locator('#forest-view').click();await page.waitForFunction(()=>window.__BAVARIA.cameraMoving===false,{timeout:60000});console.log('FOREST_STATE '+JSON.stringify(await page.evaluate(()=>window.__BAVARIA)));
+ await page.locator('#forest-view').click();await page.waitForFunction(()=>window.__BAVARIA.cameraMoving===false,{timeout:60000});const forestFrame=await page.evaluate(()=>window.__BAVARIA.frames);await page.waitForFunction(n=>window.__BAVARIA.frames>=n+9,forestFrame,{timeout:90000});console.log('FOREST_STATE '+JSON.stringify(await page.evaluate(()=>window.__BAVARIA)));
  await page.locator('#about').click();assert.equal(await page.locator('#detail').isVisible(),true);await page.keyboard.press('Escape');assert.equal(await page.locator('#detail').isVisible(),false);
  await capture({path:'bavaria-desktop.png'});console.log('VISUAL_MODEL_JPEG '+(await capture({type:'jpeg',quality:72})).toString('base64'));
  await page.locator('#photo').click();await page.waitForTimeout(12000);
