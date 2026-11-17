@@ -11,7 +11,7 @@ function setCover(on){
 $('explore').addEventListener('click',()=>setCover(false));
 $('scene-explore').onclick=()=>{$('explore').click();};
 $('cover-tour').onclick=()=>{$('explore').click();};
-$('return-cover').onclick=()=>setCover(false);
+$('return-cover').onclick=()=>setCover(true);
 $('cover-home').onclick=()=>setCover(true);
 $('cover-forest').onclick=()=>{setCover(false);$('forest-view').click();};
 function openDialog(dialog){dialog.showModal();}
@@ -21,4 +21,4 @@ $('cover-project-nav').onclick=()=>openDialog(project);
 document.querySelectorAll('[data-close-dialog]').forEach(button=>button.onclick=()=>button.closest('dialog').close());
 for(const dialog of [gallery,project])dialog.addEventListener('click',event=>{if(event.target===dialog){const r=dialog.getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)dialog.close();}});
 const image=$('cover-image');image.addEventListener('error',()=>{image.hidden=true;cover.classList.add('image-unavailable');});
-setCover(true);
+setCover(false);
