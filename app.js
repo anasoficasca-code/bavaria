@@ -3,7 +3,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { createTerritoryEnvironment } from './territory-environment.js';
 import { construirBavaria } from './vendor/bavaria.js';
-import { makeEnv, buildTrees, createFleet } from './vendor/real3d.js?v=trees-2';
+import { makeEnv, buildTrees, createFleet } from './vendor/real3d.js?v=trees-3';
 const $=id=>document.getElementById(id),ROOT='https://anasoficasca-code.github.io/simulador/';
 const mobile=matchMedia('(max-width:760px)').matches,reduced=matchMedia('(prefers-reduced-motion:reduce)').matches;
 const CX=9350,CY=3000,lw=(x,y)=>[x-CX,CY-y];
@@ -17,7 +17,7 @@ const textureLoader=new THREE.TextureLoader(),pickRay=new THREE.Raycaster(),ndc=
 const views=[
  {title:'El territorio',p:[510,310,550],t:[-70,18,-45]},
  {title:'Patrimonio industrial',p:[-470,125,280],t:[-115,12,-140]},
- {title:'El bosque',p:[355,24,180],t:[245,10,60]}
+ {title:'El bosque',p:[280,18,105],t:[252,7,61]}
 ];
 function report(message){$('status').textContent=message;}
 function texture(name,repeat=1,normal=false){const tex=textureLoader.load(ROOT+'data3d/textures/'+name+'.jpg',undefined,undefined,()=>api.errors.push('texture:'+name));tex.wrapS=tex.wrapT=THREE.RepeatWrapping;tex.repeat.set(repeat,repeat);if(!normal)tex.colorSpace=THREE.SRGBColorSpace;tex.anisotropy=Math.min(renderer.capabilities.getMaxAnisotropy(),8);return tex;}
