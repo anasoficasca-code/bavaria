@@ -128,7 +128,7 @@ function bind(){
  document.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>{fly(Number(b.dataset.view));$('menu-panel').hidden=true;$('menu').setAttribute('aria-expanded','false')});
  $('menu').onclick=()=>{const on=$('menu-panel').hidden;$('menu-panel').hidden=!on;$('menu').setAttribute('aria-expanded',String(on))};
  document.addEventListener('keydown',e=>{if(e.key==='Escape'){$('detail').hidden=true;$('menu-panel').hidden=true;$('menu').setAttribute('aria-expanded','false')}});
- document.addEventListener('visibilitychange',()=>{last=performance.now();if(move)move.started=last;});
+ document.addEventListener('visibilitychange',()=>{last=performance.now();});
  let down;renderer.domElement.addEventListener('pointerdown',e=>{down=[e.clientX,e.clientY];move=null;orbit.autoRotate=false;$('tour').setAttribute('aria-pressed','false');explore()});
  renderer.domElement.addEventListener('pointercancel',()=>{down=null;});
  renderer.domElement.addEventListener('pointerup',e=>{if(!down||Math.hypot(e.clientX-down[0],e.clientY-down[1])>6)return;const r=renderer.domElement.getBoundingClientRect();ndc.set((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1);pickRay.setFromCamera(ndc,camera);const hit=pickRay.intersectObjects(picks)[0];if(hit){const d=hit.object.userData;reveal(d.title,d.text,d.label);}});
