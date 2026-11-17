@@ -6,9 +6,10 @@ function setCover(on){
  sceneParts.forEach(el=>{if(el)el.inert=on;});
  $('return-cover').hidden=on;
  if(on){$('explore').focus({preventScroll:true});}
- else{document.body.classList.add('exploring');$('hero').classList.add('hidden');requestAnimationFrame(()=>$('model').focus({preventScroll:true}));}
+ else{if(!window.__BAVARIA?.ready){setTimeout(()=>{if(!window.__BAVARIA?.ready&&!document.body.classList.contains('on-portada')){$('loading').hidden=true;$('fallback').hidden=false;}},25000);}document.body.classList.add('exploring');$('hero').classList.add('hidden');requestAnimationFrame(()=>$('model').focus({preventScroll:true}));}
 }
 $('explore').addEventListener('click',()=>setCover(false));
+$('scene-explore').onclick=()=>{$('explore').click();};
 $('cover-tour').onclick=()=>{$('explore').click();};
 $('return-cover').onclick=()=>setCover(true);
 $('cover-home').onclick=()=>setCover(true);
