@@ -25,6 +25,15 @@ export function construirBavaria({ THREE, T3, lw, D, liviano }) {
   const matLadrillo = new THREE.MeshStandardMaterial({ map: load('ladrillo_color',true), normalMap:load('ladrillo_normal'), normalScale:new THREE.Vector2(.45,.45),roughnessMap:load('ladrillo_rugosidad'), roughness: 0.92, metalness: 0, side: THREE.DoubleSide });
   const matConcreto = new THREE.MeshStandardMaterial({ color: 0xb3aca2, roughness: 0.95, metalness: 0 }); // concreto envejecido, claro como en el video
   const matCubierta = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, metalness: 0.05, side: THREE.DoubleSide }); // cada cubierta con su color de la foto satelital
+  // Broad weathering stays legible from the initial aerial distance.
+  for(const material of [matCubierta,matConcreto]){
+    material.onBeforeCompile=shader=>{
+      shader.vertexShader=shader.vertexShader.replace('#include <common>','#include <common>\nvarying vec3 weatherPosition;').replace('#include <begin_vertex>','#include <begin_vertex>\nweatherPosition=(modelMatrix*vec4(transformed,1.0)).xyz;');
+      shader.fragmentShader=shader.fragmentShader.replace('#include <common>','#include <common>\nvarying vec3 weatherPosition;\nfloat weatherHash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}\nfloat weatherNoise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);return mix(mix(weatherHash(i),weatherHash(i+vec2(1.,0.)),f.x),mix(weatherHash(i+vec2(0.,1.)),weatherHash(i+vec2(1.,1.)),f.x),f.y);}')
+      .replace('#include <color_fragment>','#include <color_fragment>\nfloat stain=weatherNoise(weatherPosition.xz*.18);float grain=weatherNoise(weatherPosition.xz*.7);diffuseColor.rgb*=mix(.56,1.04,stain)*mix(.88,1.03,grain);');
+    };
+    material.customProgramCacheKey=()=> 'bavaria-weather-aerial-v1';
+  }
   const matPintado = new THREE.MeshStandardMaterial({ color: 0xe6e2d8, roughness: 0.85, metalness: 0, side: THREE.DoubleSide }); // muros pintados de blanco (nave grande y silos)
   const matVidrio = new THREE.MeshStandardMaterial({ color: 0x2a3138, roughness: 0.35, metalness: 0.2, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 });
   const matBlanco = new THREE.MeshStandardMaterial({ color: 0xe9e7e2, roughness: 0.7, metalness: 0.05 });
