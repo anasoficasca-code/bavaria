@@ -3,7 +3,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { createTerritoryEnvironment } from './territory-environment.js';
 import { construirBavaria } from './vendor/bavaria.js';
-import { makeEnv, buildTrees, createFleet } from './vendor/real3d.js';
+import { makeEnv, buildTrees, createFleet } from './vendor/real3d.js?v=trees-2';
 const $=id=>document.getElementById(id),ROOT='https://anasoficasca-code.github.io/simulador/';
 const mobile=matchMedia('(max-width:760px)').matches,reduced=matchMedia('(prefers-reduced-motion:reduce)').matches;
 const CX=9350,CY=3000,lw=(x,y)=>[x-CX,CY-y];
