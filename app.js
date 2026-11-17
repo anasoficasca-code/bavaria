@@ -41,10 +41,10 @@ async function setupPhoto(data){
  try{
  const [TR,PL,{DRACOLoader}]=await Promise.all([import('3d-tiles-renderer'),import('3d-tiles-renderer/plugins'),import('three/addons/loaders/DRACOLoader.js')]);
  const draco=new DRACOLoader().setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/libs/draco/gltf/');
- tiles=new TR.TilesRenderer();tiles.registerPlugin(new PL.GoogleCloudAuthPlugin({apiToken:"AIzaSyCF2MXjc0DYRFrHk7j_BCyxVpWOdYqDIC4",autoRefreshToken:true}));tiles.registerPlugin(new PL.GLTFExtensionsPlugin({dracoLoader:draco}));tiles.setCamera(camera);tiles.setResolutionFromRenderer(camera,renderer);tiles.errorTarget=48;photoStarted=performance.now();api.photoStage='streaming';api.photoErrors=0;
+ tiles=new TR.TilesRenderer();tiles.registerPlugin(new PL.GoogleCloudAuthPlugin({apiToken:"AIzaSyCF2MXjc0DYRFrHk7j_BCyxVpWOdYqDIC4",autoRefreshToken:true}));tiles.registerPlugin(new PL.GLTFExtensionsPlugin({dracoLoader:draco}));tiles.setCamera(camera);tiles.setResolutionFromRenderer(camera,renderer);tiles.errorTarget=mobile?12:5;photoStarted=performance.now();api.photoStage='streaming';api.photoErrors=0;
  const lat=4.63+(CY-2090.06)/110540,lng=-74.17+(CX-5193.24)/(111320*Math.cos(4.63*Math.PI/180));
  const enu=new THREE.Matrix4();TR.WGS84_ELLIPSOID.getEastNorthUpFrame(lat*Math.PI/180,lng*Math.PI/180,enu);enu.multiply(new THREE.Matrix4().makeTranslation(0,0,2564));
- tiles.group.matrixAutoUpdate=false;tiles.group.matrix.copy(new THREE.Matrix4().makeRotationX(-Math.PI/2).multiply(enu.invert()));tiles.group.updateMatrixWorld(true);scene.add(tiles.group);
+ tiles.group.matrixAutoUpdate=false;tiles.group.matrix.copy(new THREE.Matrix4().makeRotationX(-Math.PI/2).multiply(enu.invert()));tiles.group.updateMatrixWorld(true);tiles.group.visible=false;scene.add(tiles.group);
  const mask=buildMask(data);
  tiles.addEventListener('load-model',({scene:tileScene})=>{
  loadedTiles++;api.loadedTiles=loadedTiles;lastModel=performance.now();tileScene.traverse(o=>{
@@ -104,7 +104,7 @@ function hotspots(data){
  data.edif.forEach((e,i)=>{const g=new THREE.ExtrudeGeometry(poly(e.p),{depth:e.h,bevelEnabled:false}).rotateX(-Math.PI/2);const mesh=new THREE.Mesh(g,new THREE.MeshBasicMaterial({colorWrite:false,depthWrite:false}));mesh.userData={title:config.find(p=>p.i===i)?.title||'Patrimonio industrial',text:config.find(p=>p.i===i)?.text||'Edificio existente del conjunto de Bavaria. Geometría y posición del simulador Kennedy.',label:'BAVARIA / '+String(i+1).padStart(2,'0')};picks.push(mesh);/* Raycast targets need world matrices but never enter the rendered scene. */mesh.updateMatrixWorld();});
 }
 async function init(){
- renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});renderer.setPixelRatio(Math.min(devicePixelRatio,mobile?1.25:1.5));renderer.setSize(innerWidth,innerHeight);renderer.shadowMap.enabled=!mobile;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.12;renderer.outputColorSpace=THREE.SRGBColorSpace;$('viewport').append(renderer.domElement);renderer.domElement.tabIndex=0;
+ renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});renderer.setPixelRatio(Math.min(devicePixelRatio,mobile?1.25:1.5));renderer.setSize(innerWidth,innerHeight);renderer.shadowMap.enabled=!mobile;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.05;renderer.outputColorSpace=THREE.SRGBColorSpace;$('viewport').append(renderer.domElement);renderer.domElement.tabIndex=0;
  scene=new THREE.Scene();scene.background=new THREE.Color('#b6cddd');scene.fog=new THREE.FogExp2('#cbd8db',.000065);environment=createTerritoryEnvironment(scene,renderer,api);
  camera=new THREE.PerspectiveCamera(42,innerWidth/innerHeight,1,40000);orbit=new OrbitControls(camera,renderer.domElement);orbit.enableDamping=!reduced;orbit.dampingFactor=.065;orbit.minDistance=25;orbit.maxDistance=2800;orbit.maxPolarAngle=Math.PI*.485;orbit.autoRotateSpeed=.24;orbit.listenToKeyEvents(renderer.domElement);fly(0,true);
  scene.add(new THREE.HemisphereLight('#d9e8f4','#8c886c',1.55));const sun=new THREE.DirectionalLight('#fff0d5',2.7);sun.position.set(-500,700,400);sun.castShadow=!mobile;sun.shadow.mapSize.set(mobile?1024:4096,mobile?1024:4096);Object.assign(sun.shadow.camera,{left:-650,right:650,bottom:-650,top:650,near:10,far:2200});sun.shadow.bias=-.0002;sun.shadow.normalBias=.3;scene.add(sun);
@@ -132,9 +132,9 @@ async function init(){
  if(tiles){tiles.setResolutionFromRenderer(camera,renderer);tiles.update();
  const visible=tiles.visibleTiles?.size||0;api.visibleTiles=visible;
  const age=now-photoStarted;
- tiles.errorTarget=age<3500?48:age<8000?24:mobile?12:5;
+ tiles.errorTarget=mobile?12:5;
  api.photoPending=(tiles.stats?.downloading||0)+(tiles.stats?.parsing||0);api.photoStage=photoAvailable?(api.photoPending?'refining':'visible'):'streaming';
- if(!photoAvailable&&visible>=4&&loadedTiles>=8&&age>2500){
+ if(!photoAvailable&&visible>=12&&loadedTiles>=24&&age>8000&&now-lastModel>800){
   photoAvailable=true;api.photoReady=true;photoSettledAt=now;setMode(wantPhoto);report('');
  }
  api.photoSettled=photoAvailable&&api.photoPending===0&&now-lastModel>1500&&now-photoSettledAt>3500;
