@@ -14,12 +14,52 @@ let photoAvailable=false,wantPhoto=false,paused=reduced,velocity=1,elapsed=1000,
 let move=null,frame=0,photoFailure=false,photoStarted=0,photoSettledAt=0;const picks=[],markers=[],directions=new Map(),steps=[];
 const textureLoader=new THREE.TextureLoader(),pickRay=new THREE.Raycaster(),ndc=new THREE.Vector2(),projectUniform={value:0};
 const views=[
- {title:'El territorio',p:[650,470,730],t:[-85,65,-30]},
+ {title:'El territorio',p:[510,310,550],t:[-70,18,-45]},
  {title:'Patrimonio industrial',p:[-470,125,280],t:[-115,12,-140]},
  {title:'El bosque',p:[430,90,310],t:[210,15,90]}
 ];
 function report(message){$('status').textContent=message;}
 function texture(name,repeat=1,normal=false){const tex=textureLoader.load(ROOT+'data3d/textures/'+name+'.jpg',undefined,undefined,()=>api.errors.push('texture:'+name));tex.wrapS=tex.wrapT=THREE.RepeatWrapping;tex.repeat.set(repeat,repeat);if(!normal)tex.colorSpace=THREE.SRGBColorSpace;tex.anisotropy=Math.min(renderer.capabilities.getMaxAnisotropy(),8);return tex;}
+
+function groundSurface(geometry,data,forest){
+ const size=2048,span=1600,canvas=document.createElement('canvas');canvas.width=canvas.height=size;
+ const ctx=canvas.getContext('2d'),image=ctx.createImageData(size,size);
+ for(let y=0;y<size;y++)for(let x=0;x<size;x++){
+  const broad=Math.sin(x*.014+Math.sin(y*.009)*2)*Math.cos(y*.011)+Math.sin((x+y)*.035)*.2;
+  const fine=Math.sin(x*1.71+y*.63)*Math.sin(y*1.37-x*.83);
+  const k=1+broad*.09+fine*.035,i=(y*size+x)*4;
+  image.data[i]=112*k;image.data[i+1]=123*k;image.data[i+2]=75*k;image.data[i+3]=255;
+ }
+ ctx.putImageData(image,0,0);
+ const point=p=>{const w=lw(...p);return [(w[0]+800)/span*size,(800-w[1])/span*size];};
+ // Existing industrial footprints remain mineral surfaces, including roofless halls.
+ for(const building of data.edif){
+  ctx.beginPath();building.p.forEach((p,i)=>{const q=point(p);i?ctx.lineTo(...q):ctx.moveTo(...q);});ctx.closePath();ctx.fillStyle='#9c9989';ctx.fill();
+  ctx.strokeStyle='#777661';ctx.lineWidth=3;ctx.stroke();
+ }
+ // Soft contact occlusion follows recorded tree positions and the scene's sun direction.
+ ctx.globalCompositeOperation='multiply';
+ for(const tree of forest.arboles){
+  const q=point(tree),r=Math.max(4,Math.min(13,(tree[2]||12)*.5))/span*size;
+  const g=ctx.createRadialGradient(q[0]+r*.22,q[1]+r*.18,0,q[0]+r*.22,q[1]+r*.18,r);
+  g.addColorStop(0,'#808574');g.addColorStop(.45,'#afb29e');g.addColorStop(1,'#ffffff');
+  ctx.fillStyle=g;ctx.fillRect(q[0]-r,q[1]-r,r*2.4,r*2.4);
+ }
+ ctx.globalCompositeOperation='source-over';
+ const macro=new THREE.CanvasTexture(canvas);macro.colorSpace=THREE.SRGBColorSpace;macro.anisotropy=8;
+ const position=geometry.attributes.position,uv=new Float32Array(position.count*2),uv1=new Float32Array(position.count*2);
+ for(let i=0;i<position.count;i++){uv[i*2]=position.getX(i)/8;uv[i*2+1]=position.getZ(i)/8;uv1[i*2]=(position.getX(i)+800)/span;uv1[i*2+1]=(position.getZ(i)+800)/span;}
+ geometry.setAttribute('uv',new THREE.BufferAttribute(uv,2));geometry.setAttribute('uv1',new THREE.BufferAttribute(uv1,2));
+ const material=new THREE.MeshStandardMaterial({map:texture('pasto_color',1),normalMap:texture('pasto_normal',1,true),normalScale:new THREE.Vector2(.32,.32),roughness:.98});
+ material.onBeforeCompile=sh=>{
+  sh.uniforms.terrainMacro={value:macro};
+  sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nvarying vec2 terrainUV;').replace('#include <begin_vertex>','#include <begin_vertex>\nterrainUV=(position.xz+800.0)/1600.0;');
+  sh.fragmentShader=sh.fragmentShader.replace('#include <common>','#include <common>\nvarying vec2 terrainUV;uniform sampler2D terrainMacro;').replace('#include <map_fragment>','#include <map_fragment>\nvec3 terrainColor=texture2D(terrainMacro,terrainUV).rgb;diffuseColor.rgb=terrainColor*(.78+diffuseColor.rgb*.65);');
+ };
+ material.customProgramCacheKey=()=> 'bavaria-ground-geographic-v1';
+ return material;
+}
+
 function poly(points){return new THREE.Shape(points.map(p=>{const q=lw(...p);return new THREE.Vector2(q[0],-q[1])}));}
 function reveal(title,text,label='BAVARIA COMÚN'){$('detail-title').textContent=title;$('detail-text').textContent=text;$('detail-number').textContent=label;$('detail').hidden=false;explore();}
 function explore(){document.body.classList.add('exploring');$('hero').classList.add('hidden');}
@@ -104,17 +144,17 @@ function hotspots(data){
  data.edif.forEach((e,i)=>{const g=new THREE.ExtrudeGeometry(poly(e.p),{depth:e.h,bevelEnabled:false}).rotateX(-Math.PI/2);const mesh=new THREE.Mesh(g,new THREE.MeshBasicMaterial({colorWrite:false,depthWrite:false}));mesh.userData={title:config.find(p=>p.i===i)?.title||'Patrimonio industrial',text:config.find(p=>p.i===i)?.text||'Edificio existente del conjunto de Bavaria. Geometría y posición del simulador Kennedy.',label:'BAVARIA / '+String(i+1).padStart(2,'0')};picks.push(mesh);/* Raycast targets need world matrices but never enter the rendered scene. */mesh.updateMatrixWorld();});
 }
 async function init(){
- renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});renderer.setPixelRatio(Math.min(devicePixelRatio,mobile?1.25:1.5));renderer.setSize(innerWidth,innerHeight);renderer.shadowMap.enabled=!mobile;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.05;renderer.outputColorSpace=THREE.SRGBColorSpace;$('viewport').append(renderer.domElement);renderer.domElement.tabIndex=0;
+ renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});renderer.setPixelRatio(Math.min(devicePixelRatio,mobile?1.5:2));renderer.setSize(innerWidth,innerHeight);renderer.shadowMap.enabled=!mobile;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.05;renderer.outputColorSpace=THREE.SRGBColorSpace;$('viewport').append(renderer.domElement);renderer.domElement.tabIndex=0;
  scene=new THREE.Scene();scene.background=new THREE.Color('#b6cddd');scene.fog=new THREE.FogExp2('#cbd8db',.00024);environment=createTerritoryEnvironment(scene,renderer,api);
  camera=new THREE.PerspectiveCamera(42,innerWidth/innerHeight,1,40000);orbit=new OrbitControls(camera,renderer.domElement);orbit.enableDamping=!reduced;orbit.dampingFactor=.065;orbit.minDistance=25;orbit.maxDistance=2800;orbit.maxPolarAngle=Math.PI*.485;orbit.autoRotateSpeed=.24;orbit.listenToKeyEvents(renderer.domElement);fly(0,true);
- scene.add(new THREE.HemisphereLight('#d9e8f4','#8c886c',1.55));const sun=new THREE.DirectionalLight('#fff0d5',2.7);sun.position.set(-500,700,400);sun.castShadow=!mobile;sun.shadow.mapSize.set(mobile?1024:4096,mobile?1024:4096);Object.assign(sun.shadow.camera,{left:-650,right:650,bottom:-650,top:650,near:10,far:2200});sun.shadow.bias=-.0002;sun.shadow.normalBias=.3;scene.add(sun);
+ scene.add(new THREE.HemisphereLight('#d9e8f4','#77735b',1.15));const sun=new THREE.DirectionalLight('#fff0d5',2.7);sun.position.set(-500,700,400);sun.castShadow=!mobile;sun.shadow.mapSize.set(mobile?1024:4096,mobile?1024:4096);Object.assign(sun.shadow.camera,{left:-500,right:500,bottom:-500,top:500,near:10,far:2200});sun.shadow.bias=-.0002;sun.shadow.normalBias=.12;sun.shadow.radius=2.5;scene.add(sun);
  scene.environment=makeEnv(renderer);
  model=new THREE.Group();scene.add(model);
  T3={THREE,scene:model,renderer,movil:mobile,liviano:mobile,realista:true,kenArboles:true,waterU:{value:0},sueloY:.3,escenario:'hoy'};
  bind();
  const json=async url=>{const r=await fetch(url);if(!r.ok)throw Error('HTTP '+r.status+' en '+url);return r.json()};
  const [data,forest,roads]=await Promise.all([json('./data/bavaria.json'),json('./data/trees.json'),json('./data/roads.json')]);T3.bavArboles=forest.arboles;
- ground=new THREE.Mesh(new THREE.ShapeGeometry(poly(data.sitio)).rotateX(-Math.PI/2),new THREE.MeshStandardMaterial({map:texture('pasto_color',20),normalMap:texture('pasto_normal',20,true),normalScale:new THREE.Vector2(.5,.5),roughness:1}));ground.position.y=-.15;ground.receiveShadow=true;model.add(ground);
+ const groundGeometry=new THREE.ShapeGeometry(poly(data.sitio)).rotateX(-Math.PI/2);ground=new THREE.Mesh(groundGeometry,groundSurface(groundGeometry,data,forest));ground.position.y=-.15;ground.receiveShadow=true;model.add(ground);
  architecture=construirBavaria({THREE,T3,lw,D:data,liviano:mobile});
  const asphalt=new THREE.MeshStandardMaterial({color:'#585b57',map:texture('via_color',1),normalMap:texture('via_normal',1,true),roughness:.92,side:THREE.DoubleSide});
  const roadGeometries=[];roads.edges.forEach(([type,points])=>{const width=type==='major'?8:type==='mid'?5:3;const pos=[],uv=[];for(let i=0;i<points.length-1;i++){const a=lw(...points[i]),b=lw(...points[i+1]);if(Math.min(Math.hypot(...a),Math.hypot(...b))>850)continue;const dx=b[0]-a[0],dz=b[1]-a[1],len=Math.hypot(dx,dz);if(len<.1)continue;const nx=-dz/len*width,nz=dx/len*width;const v=[[a[0]+nx,.02,a[1]+nz],[a[0]-nx,.02,a[1]-nz],[b[0]+nx,.02,b[1]+nz],[b[0]-nx,.02,b[1]-nz]];for(const j of[0,1,2,2,1,3]){pos.push(...v[j]);uv.push(j%2,len*(j>1?1:0)/8);}}if(!pos.length)return;const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));g.computeVertexNormals();roadGeometries.push(g)});if(roadGeometries.length){const merged=mergeGeometries(roadGeometries);const roadMesh=new THREE.Mesh(merged,asphalt);roadMesh.receiveShadow=true;model.add(roadMesh);roadGeometries.forEach(g=>g.dispose());}
@@ -139,7 +179,7 @@ async function init(){
  }
  api.photoSettled=photoAvailable&&api.photoPending===0&&now-lastModel>1500&&now-photoSettledAt>3500;
  if(now-lastAttrib>1800){lastAttrib=now;try{const a=tiles.getAttributions().filter(a=>a.type==='string').map(a=>a.value).join(' · ');$('attribution').textContent=photoAvailable?'Google'+(a?' · '+a:'')+(api.mode==='model'?' · © Esri':''):'© Esri · Imagen satelital';}catch{} }}
- if(trees&&model.visible&&frame%8===0){camera.getWorldDirection(camDirection);trees.update({position:camera.position,cam:camera.position,dir:camDirection});}
+ if(trees&&model.visible&&frame%4===0){camera.getWorldDirection(camDirection);trees.update({position:camera.position,cam:camera.position,dir:camDirection});}
  updateTraffic(dt);
  markers.forEach(m=>{const p=m.point.clone().project(camera),visible=p.z<1&&p.z>-1&&Math.abs(p.x)<.96&&Math.abs(p.y)<.9;m.el.hidden=!visible;m.el.style.left=((p.x*.5+.5)*innerWidth)+'px';m.el.style.top=((-p.y*.5+.5)*innerHeight)+'px';});
  renderer.render(scene,camera);api.frames=frame;api.drawCalls=renderer.info.render.calls;
