@@ -14,7 +14,7 @@ let photoAvailable=false,wantPhoto=true,paused=reduced,velocity=1,elapsed=1000,l
 let move=null,frame=0,photoFailure=false,photoStarted=0,photoSettledAt=0;const picks=[],markers=[],directions=new Map(),steps=[];
 const textureLoader=new THREE.TextureLoader(),pickRay=new THREE.Raycaster(),ndc=new THREE.Vector2(),projectUniform={value:0};
 const views=[
- {title:'El territorio',p:[650,410,730],t:[-85,155,-30]},
+ {title:'El territorio',p:[650,470,730],t:[-85,65,-30]},
  {title:'Patrimonio industrial',p:[-470,125,280],t:[-115,12,-140]},
  {title:'El bosque',p:[430,90,310],t:[210,15,90]}
 ];
@@ -105,7 +105,7 @@ function hotspots(data){
 }
 async function init(){
  renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});renderer.setPixelRatio(Math.min(devicePixelRatio,mobile?1.25:1.5));renderer.setSize(innerWidth,innerHeight);renderer.shadowMap.enabled=!mobile;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.05;renderer.outputColorSpace=THREE.SRGBColorSpace;$('viewport').append(renderer.domElement);renderer.domElement.tabIndex=0;
- scene=new THREE.Scene();scene.background=new THREE.Color('#b6cddd');scene.fog=new THREE.FogExp2('#cbd8db',.000065);environment=createTerritoryEnvironment(scene,renderer,api);
+ scene=new THREE.Scene();scene.background=new THREE.Color('#b6cddd');scene.fog=new THREE.FogExp2('#cbd8db',.00024);environment=createTerritoryEnvironment(scene,renderer,api);
  camera=new THREE.PerspectiveCamera(42,innerWidth/innerHeight,1,40000);orbit=new OrbitControls(camera,renderer.domElement);orbit.enableDamping=!reduced;orbit.dampingFactor=.065;orbit.minDistance=25;orbit.maxDistance=2800;orbit.maxPolarAngle=Math.PI*.485;orbit.autoRotateSpeed=.24;orbit.listenToKeyEvents(renderer.domElement);fly(0,true);
  scene.add(new THREE.HemisphereLight('#d9e8f4','#8c886c',1.55));const sun=new THREE.DirectionalLight('#fff0d5',2.7);sun.position.set(-500,700,400);sun.castShadow=!mobile;sun.shadow.mapSize.set(mobile?1024:4096,mobile?1024:4096);Object.assign(sun.shadow.camera,{left:-650,right:650,bottom:-650,top:650,near:10,far:2200});sun.shadow.bias=-.0002;sun.shadow.normalBias=.3;scene.add(sun);
  scene.environment=makeEnv(renderer);
@@ -116,8 +116,8 @@ async function init(){
  const [data,forest,roads]=await Promise.all([json('./data/bavaria.json'),json('./data/trees.json'),json('./data/roads.json')]);T3.bavArboles=forest.arboles;
  ground=new THREE.Mesh(new THREE.ShapeGeometry(poly(data.sitio)).rotateX(-Math.PI/2),new THREE.MeshStandardMaterial({map:texture('pasto_color',20),normalMap:texture('pasto_normal',20,true),normalScale:new THREE.Vector2(.5,.5),roughness:1}));ground.position.y=-.15;ground.receiveShadow=true;model.add(ground);
  architecture=construirBavaria({THREE,T3,lw,D:data,liviano:mobile});
- const asphalt=new THREE.MeshStandardMaterial({map:texture('via_color',1),normalMap:texture('via_normal',1,true),roughness:.92,side:THREE.DoubleSide});
- const roadGeometries=[];roads.edges.forEach(([type,points])=>{const width=type==='major'?8:type==='mid'?5:3;const pos=[],uv=[];for(let i=0;i<points.length-1;i++){const a=lw(...points[i]),b=lw(...points[i+1]),dx=b[0]-a[0],dz=b[1]-a[1],len=Math.hypot(dx,dz);if(len<.1)continue;const nx=-dz/len*width,nz=dx/len*width;const v=[[a[0]+nx,.02,a[1]+nz],[a[0]-nx,.02,a[1]-nz],[b[0]+nx,.02,b[1]+nz],[b[0]-nx,.02,b[1]-nz]];for(const j of[0,1,2,2,1,3]){pos.push(...v[j]);uv.push(j%2,len*(j>1?1:0)/8);}}if(!pos.length)return;const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));g.computeVertexNormals();roadGeometries.push(g)});if(roadGeometries.length){const merged=mergeGeometries(roadGeometries);const roadMesh=new THREE.Mesh(merged,asphalt);roadMesh.receiveShadow=true;model.add(roadMesh);roadGeometries.forEach(g=>g.dispose());}
+ const asphalt=new THREE.MeshStandardMaterial({color:'#585b57',map:texture('via_color',1),normalMap:texture('via_normal',1,true),roughness:.92,side:THREE.DoubleSide});
+ const roadGeometries=[];roads.edges.forEach(([type,points])=>{const width=type==='major'?8:type==='mid'?5:3;const pos=[],uv=[];for(let i=0;i<points.length-1;i++){const a=lw(...points[i]),b=lw(...points[i+1]);if(Math.min(Math.hypot(...a),Math.hypot(...b))>850)continue;const dx=b[0]-a[0],dz=b[1]-a[1],len=Math.hypot(dx,dz);if(len<.1)continue;const nx=-dz/len*width,nz=dx/len*width;const v=[[a[0]+nx,.02,a[1]+nz],[a[0]-nx,.02,a[1]-nz],[b[0]+nx,.02,b[1]+nz],[b[0]-nx,.02,b[1]-nz]];for(const j of[0,1,2,2,1,3]){pos.push(...v[j]);uv.push(j%2,len*(j>1?1:0)/8);}}if(!pos.length)return;const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));g.computeVertexNormals();roadGeometries.push(g)});if(roadGeometries.length){const merged=mergeGeometries(roadGeometries);const roadMesh=new THREE.Mesh(merged,asphalt);roadMesh.receiveShadow=true;model.add(roadMesh);roadGeometries.forEach(g=>g.dispose());}
  fleet=createFleet({...T3,scene},scene.environment);fleet.setNear(650);
  hotspots(data);api.ready=true;report('Cargando árboles y territorio fotográfico…');$('loading').classList.add('done');setTimeout(()=>$('loading').hidden=true,650);
  setupPhoto(data);
