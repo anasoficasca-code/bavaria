@@ -11,7 +11,7 @@ function setCover(on){
 $('explore').addEventListener('click',()=>setCover(false));
 $('scene-explore').onclick=()=>{$('explore').click();};
 $('cover-tour').onclick=()=>{$('explore').click();};
-$('return-cover').onclick=()=>setCover(true);
+$('return-cover').onclick=()=>setCover(false);
 $('cover-home').onclick=()=>setCover(true);
 $('cover-forest').onclick=()=>{setCover(false);$('forest-view').click();};
 function openDialog(dialog){dialog.showModal();}
