@@ -206,31 +206,48 @@ function sombraCopa(g, m, alto, ancho) {
   const p = g.attributes.position, n = p.count, c = new Float32Array(n * 3), R = ancho / 2;
   for (let i = 0; i < n; i++) {
     const hy = p.getY(i) / alto, r = Math.hypot(p.getX(i), p.getZ(i)) / R, s = (t0, t1, x) => { const t = Math.max(0, Math.min(1, (x - t0) / (t1 - t0))); return t * t * (3 - 2 * t); };
-    const luz = 0.68 + 0.42 * (0.55 * s(0.3, 0.95, hy) + 0.45 * s(0.25, 1.0, r));
+    const luz = 0.84 + 0.20 * (0.55 * s(0.3, 0.95, hy) + 0.45 * s(0.25, 1.0, r));
     c[i * 3] = luz * 0.96; c[i * 3 + 1] = luz; c[i * 3 + 2] = luz * (1.0 + 0.06 * (1 - luz));
   }
   g.setAttribute('color', new THREE.BufferAttribute(c, 3)); m.vertexColors = true; m.needsUpdate = true;
 }
-function realzarMaterial(m, env, hoja) {
-  ajustarMat(m, env, { roughness: realzarMaterial.ken ? 1.0 : 0.9, tinte: hoja ? (realzarMaterial.ken ? 1.0 : 1.25) : 1.0, env: realzarMaterial.ken ? 0.12 : 0.4 }); /* Kennedy: hojas mate, sin reflejo del cielo (se veían brillantes) */
-  // las caras que no miran al sol no se ven negras: la textura aporta un poco de luz propia
-  if (m.map) { m.emissiveMap = m.map; m.emissive = new THREE.Color(1, 1, 1); m.emissiveIntensity = hoja ? (realzarMaterial.ken ? 0.08 : 0.42) /* menos luz propia: las copas se veían planas; ahora la luz viene del sol que las atraviesa (balanceo) */ : (realzarMaterial.ken ? 0.08 : 0.18); } // simulador: luz de relleno en la copa (sin el interior negro): árboles suaves
-  m.needsUpdate = true; return m;
+function realzarMaterial(m,env,hoja){
+  ajustarMat(m,env,{roughness:hoja?.82:.94,tinte:1,env:hoja?.45:.32});
+  if(hoja){m.alphaTest=.42;m.alphaToCoverage=true;m.transparent=false;m.depthWrite=true;m.forceSinglePass=true;}
+  for(const key of ['map','normalMap','roughnessMap']){const t=m[key];if(t){t.anisotropy=8;t.generateMipmaps=true;t.minFilter=THREE.LinearMipmapLinearFilter;}}
+  if(m.map){m.emissiveMap=m.map;m.emissive=new THREE.Color(1,1,1);m.emissiveIntensity=hoja?.14:.035;}
+  m.needsUpdate=true;return m;
 }
-function dibujarSiluetas(T3, partes, alto, ancho) {
-  const lado = Math.max(alto, ancho) * 1.08, rt = new THREE.WebGLRenderTarget(512, 512, { samples: 4, type:THREE.HalfFloatType }), s = new THREE.Scene();
-  s.add(new THREE.HemisphereLight(0xdfeaff, 0x6a7a55, 1.4)); const sol = new THREE.DirectionalLight(0xfff1d6, 2.6); sol.position.set(30, 60, 40); s.add(sol);
-  partes.forEach(p => { const mesh = new THREE.Mesh(p.geo, p.mat); s.add(mesh); });
-  const cam = new THREE.OrthographicCamera(-lado / 2, lado / 2, lado / 2, -lado / 2, 1, 200); cam.position.set(0, lado / 2, 80); cam.lookAt(0, lado / 2, 0);
-  for(const target of [rt]){target.texture.generateMipmaps=true;target.texture.minFilter=THREE.LinearMipmapLinearFilter;target.texture.anisotropy=Math.min(8,T3.renderer.capabilities.getMaxAnisotropy());}
-  const r = T3.renderer, c0 = new THREE.Color(); r.getClearColor(c0); const a0 = r.getClearAlpha(), rt0 = r.getRenderTarget();
-  r.setRenderTarget(rt); r.setClearColor(0x000000, 0); r.clear(); r.render(s, cam); r.setRenderTarget(rt0); r.setClearColor(c0, a0);
-  // segunda foto, desde arriba: sirve para que visto desde lo alto (vuelo, zoom lejano) el árbol tenga copa y no sea una cruz de láminas
-  const rtT = new THREE.WebGLRenderTarget(512, 512, { samples: 4 }), camT = new THREE.OrthographicCamera(-lado / 2, lado / 2, lado / 2, -lado / 2, 1, 400);
-  rtT.texture.generateMipmaps=true;rtT.texture.minFilter=THREE.LinearMipmapLinearFilter;rtT.texture.anisotropy=Math.min(8,r.capabilities.getMaxAnisotropy());
-  camT.position.set(0, alto + 120, 0); camT.up.set(0, 0, -1); camT.lookAt(0, 0, 0);
-  r.setRenderTarget(rtT); r.setClearColor(0x000000, 0); r.clear(); r.render(s, camT); r.setRenderTarget(rt0); r.setClearColor(c0, a0);
-  return { tex: rt.texture, texTop: rtT.texture, lado };
+function dibujarSiluetas(T3,partes,alto,ancho){
+  // Capture the scan from 32 directions; far trees match the actual camera angle.
+  const columns=8,rows=4,tile=256,lado=Math.max(alto,ancho)*1.14;
+  const rt=new THREE.WebGLRenderTarget(columns*tile,rows*tile,{samples:4,type:THREE.HalfFloatType});
+  rt.texture.generateMipmaps=false;rt.texture.minFilter=THREE.LinearMipmapLinearFilter;
+  rt.texture.magFilter=THREE.LinearFilter;rt.texture.colorSpace=THREE.LinearSRGBColorSpace;
+  rt.texture.anisotropy=Math.min(8,T3.renderer.capabilities.getMaxAnisotropy());
+  const s=new THREE.Scene();s.add(new THREE.HemisphereLight('#d9e8f4','#77735b',1.15));
+  const sun=new THREE.DirectionalLight('#fff0d5',2.7);sun.position.set(-500,700,400);s.add(sun);
+  partes.forEach(p=>s.add(new THREE.Mesh(p.geo,p.mat)));
+  const cam=new THREE.OrthographicCamera(-lado/2,lado/2,lado/2,-lado/2,.1,400);
+  const r=T3.renderer,c0=new THREE.Color(),viewport=new THREE.Vector4(),scissor=new THREE.Vector4();
+  r.getClearColor(c0);r.getViewport(viewport);r.getScissor(scissor);
+  const a0=r.getClearAlpha(),rt0=r.getRenderTarget(),sc0=r.getScissorTest(),tone=r.toneMapping,auto=r.autoClear;
+  const elevation=[0,Math.PI/6,Math.PI/3,Math.PI*.48];
+  try{
+    r.toneMapping=THREE.NoToneMapping;r.autoClear=false;r.setRenderTarget(rt);
+    r.setScissorTest(false);r.setClearColor(0x000000,0);r.clear();r.setScissorTest(true);
+    for(let row=0;row<rows;row++)for(let col=0;col<columns;col++){
+      const az=col/columns*Math.PI*2,el=elevation[row],radius=100;
+      cam.position.set(Math.sin(az)*Math.cos(el)*radius,alto/2+Math.sin(el)*radius,Math.cos(az)*Math.cos(el)*radius);
+      cam.up.set(0,1,0);cam.lookAt(0,alto/2,0);cam.updateMatrixWorld();
+      rt.viewport.set(col*tile,row*tile,tile,tile);rt.scissor.copy(rt.viewport);rt.scissorTest=true;r.setRenderTarget(rt);
+      if(row===rows-1&&col===columns-1)rt.texture.generateMipmaps=true;r.render(s,cam);
+    }
+  }finally{
+    r.setRenderTarget(rt0);r.setViewport(viewport);r.setScissor(scissor);r.setScissorTest(sc0);
+    r.setClearColor(c0,a0);r.toneMapping=tone;r.autoClear=auto;
+  }
+  return {tex:rt.texture,lado,columns,rows,elevation};
 }
 // Arbol 3D de muy pocos triangulos (tronco + copa hecha con varias masas), de 1 m de alto y 1 m de ancho, con color por vertice.
 // Es 3D de verdad (volumen, no planos): se usa a media y larga distancia, donde el modelo real no cabe en la tarjeta grafica.
@@ -346,11 +363,15 @@ function geometriaCopaDeModelo(niveles, alto, ancho, detalle = 1) {
 export async function buildTrees(T3, T, W, lw, env, Pq, Net) {
   const api0 = {}; realzarMaterial.ken = !!T3.kenArboles;
   const stride = Math.max(1, Math.ceil(T.t.length / 130000)); // se muestran todos los arboles de los datos
-  const X = [], Z = [], Hh = [], SP = [], pesoTot = ESPECIES_ARBOL.reduce((a, e) => a + e.peso, 0);
+  const X = [], Z = [], Hh = [], Rr = [], SP = [], pesoTot = ESPECIES_ARBOL.reduce((a, e) => a + e.peso, 0);
   const elegir = (r) => { r *= pesoTot; for (let k = 0; k < ESPECIES_ARBOL.length; k++) { r -= ESPECIES_ARBOL[k].peso; if (r < 0) return k; } return ESPECIES_ARBOL.length - 1; };
   const KEN_A = !!T3.kenArboles; // simulador: alturas como el render de Unreal (6 a 14 m, copas grandes); el censo marca muchos de 1-2 m y se veían como matas
   const BOSQUE = []; // árboles del bosque de Bavaria (t[4] === 1)
-  for (let i = 0; i < T.t.length; i += stride) { const t = T.t[i], w = lw(t[0], t[1]); if (t[4] === 1) { BOSQUE[X.length] = 1; X.push(w[0]); Z.push(w[1]); Hh.push(Math.max(18, Math.min(30, (t[2] || 14) * 1.6 + hash(i * 9 + 4) * 4))); SP.push(0); continue; } X.push(w[0]); Z.push(w[1]); Hh.push(KEN_A ? Math.max(6, Math.min(14, 6.5 + (t[2] || 4) * 0.8 + hash(i * 5 + 2) * 3)) : Math.max(4, Math.min(16, t[2] || 6))); SP.push(elegir(hash(i * 3 + 1))); }
+  for(let i=0;i<T.t.length;i+=stride){
+    const t=T.t[i],w=lw(t[0],t[1]),idx=X.length;if(t[4]===1)BOSQUE[idx]=1;
+    X.push(w[0]);Z.push(w[1]);Hh.push(Math.max(4,Math.min(36,t[2]||12)));
+    Rr.push(Math.max(1.5,Math.min(14,t[3]||4)));SP.push(elegir(hash(i*3+1)));
+  }
   const aguas = cuerposDeAgua(W, lw); let ribera = 0;
   for (const a of aguas) {
     for (let i = 0; i < a.pts.length && ribera < 30000; i += 2) {
@@ -415,12 +436,12 @@ export async function buildTrees(T3, T, W, lw, env, Pq, Net) {
     for (const nv of MV ? ['L1'] : ['L0', 'L1']) niveles[nv].forEach(p => { p.geo.translate(-cx, -b.min.y, -cz); realzarMaterial(p.mat, env, p.hoja); if (p.hoja && T3.kenArboles) sombraCopa(p.geo, p.mat, alto, ancho); });
     const hojaRGB = colorPromedioHoja(niveles.L1) || colorPromedioHoja(niveles.L0) || [0.11, 0.17, 0.06];
     for (const nv of MV ? ['L1'] : ['L0', 'L1']) niveles[nv].forEach(p => { if (p.hoja) balanceo(p.mat, alto, T3); });
-    const sil = dibujarSiluetas(T3, niveles.L0, alto, ancho);
+    const sil = dibujarSiluetas(T3, niveles.L1, alto, ancho);
     especies.push({ ...E, niveles, alto, ancho, sil, hojaRGB });
   }
   // L0 modelo real completo (cerca) · L1 modelo real reducido (medio) · L2 arbol 3D de bajos poligonos (lejos) · siluetas sólo más allá de R2 o si se llena el cupo
   // la versión ligera (gafas VR, celulares: T3.liviano) usa menos árboles detallados y copas más simples; la completa muestra más modelos reales
-  const KA = !!T3.kenArboles, LV = !!T3.liviano, CAP2 = LV ? 5000 : 10000, R0 = MV ? 0 : LV ? 45 : 95, R1 = MV ? 140 : LV ? 190 : 320, OSC = KA ? 0.92 : 1, /* Kennedy: reales hasta 900 m, más oscuros (igual de cerca y de lejos) */ /* Kennedy: reales hasta 420 m (más oscuros); más lejos, copas tipo splat (arboles_splat.js) */ R2 = LV ? 1200 : 2200, d = new THREE.Object3D(), col = new THREE.Color();
+  const KA = !!T3.kenArboles, LV = !!T3.liviano, CAP2 = LV ? 5000 : 10000, R0 = MV ? 0 : LV ? 45 : 95, R1 = MV ? 140 : LV ? 190 : 320, OSC = 1, /* Kennedy: reales hasta 900 m, más oscuros (igual de cerca y de lejos) */ /* Kennedy: reales hasta 420 m (más oscuros); más lejos, copas tipo splat (arboles_splat.js) */ R2 = LV ? 1200 : 2200, d = new THREE.Object3D(), col = new THREE.Color();
   const CAP0S = especies.map(e => MV ? 1 : e.base === 'arbolpeq' ? 5 : 12); // Close scans only; farther trees retain their photographed silhouettes.
   const CAP1S = especies.map(e => MV ? 12 : e.base === 'arbolpeq' ? 28 : 60); // Bound geometry work while preserving all original tree positions.
   const TIPO_BAJO = especies.map(e => (e.base === 'arbolpeq' || e.base === 'island_tree_02') ? 1 : 0);
@@ -431,27 +452,54 @@ export async function buildTrees(T3, T, W, lw, env, Pq, Net) {
   const lod = especies.map((e, si) => ({ L0: e.niveles.L0.map(p => { const m = new THREE.InstancedMesh(p.geo, p.mat, CAP0S[si]); m.count = 0; m.frustumCulled = false; m.castShadow = true; m.receiveShadow = true; T3.scene.add(m); return m; }),
     L1: e.niveles.L1.map(p => { const m = new THREE.InstancedMesh(p.geo, p.mat, CAP1S[si]); m.count = 0; m.frustumCulled = false; m.castShadow = !LV && !T3.splatLejos; m.receiveShadow = true; T3.scene.add(m); return m; }) })); /* rendimiento: con splat lejano, los reales medios sin sombra propia */
   lod.forEach(l => [...l.L0, ...l.L1].forEach(m => { m.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(m.instanceMatrix.count * 3), 3); m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); }));
-  // lejos: tres planos cruzados con la silueta real de la especie
-  const cruz = (lado) => { const ps = [0, Math.PI / 2].map(a => { const g = new THREE.PlaneGeometry(lado, lado); g.translate(0, lado / 2, 0); g.rotateY(a); return g; }); return mergeGeometries(ps); };
-  const lejos = especies.map((e, ei) => { const mat = new THREE.MeshBasicMaterial({ map: e.sil.tex, alphaTest: 0.18, alphaToCoverage:true, color:0xffffff, side: THREE.DoubleSide }); const cap = SP.reduce((a, q) => a + (q === ei ? 1 : 0), 0) + 16; const m = new THREE.InstancedMesh(cruz(e.sil.lado), mat, cap); m.count = 0; m.frustumCulled = false; m.castShadow = false; m.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(cap * 3), 3); m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); T3.scene.add(m); return m; });
-  // copa vista desde arriba: lámina horizontal con la foto cenital del árbol (de canto casi no se ve; desde el aire cubre los huecos entre las láminas verticales)
-  const techos = especies.map((e, ei) => { const g = new THREE.PlaneGeometry(e.sil.lado, e.sil.lado); g.rotateX(-Math.PI / 2); g.translate(0, e.alto * 0.62, 0); const mat = new THREE.MeshBasicMaterial({ map: e.sil.texTop, alphaTest: 0.42, side: THREE.DoubleSide }); const cap = lejos[ei].instanceMatrix.count; const m = new THREE.InstancedMesh(g, mat, cap); m.count = 0; m.frustumCulled = false; m.castShadow = false; m.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(cap * 3), 3); m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); T3.scene.add(m); return m; });
+  // One view-dependent card per distant tree; no intersecting front/top planes.
+  const lejos=especies.map((e,ei)=>{
+    const cap=SP.reduce((a,q)=>a+(q===ei?1:0),0)+16,g=new THREE.PlaneGeometry(e.sil.lado,e.sil.lado);
+    g.setAttribute('treeFrame',new THREE.InstancedBufferAttribute(new Float32Array(cap*3),3));
+    const mat=new THREE.MeshBasicMaterial({map:e.sil.tex,alphaTest:.22,alphaToCoverage:true,color:0xffffff,side:THREE.DoubleSide});
+    mat.onBeforeCompile=sh=>{
+      sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nattribute vec3 treeFrame;varying vec2 treeAtlasUV;');
+      sh.vertexShader=sh.vertexShader.replace('#include <project_vertex>',
+        'float treeSX=length(instanceMatrix[0].xyz);float treeSY=length(instanceMatrix[1].xyz);'+
+        'float treeSV=mix(treeSY,treeSX,treeFrame.z);'+
+        'vec4 mvPosition=modelViewMatrix*instanceMatrix*vec4(0.0,'+(e.alto/2).toFixed(5)+',0.0,1.0);'+
+        'mvPosition.xy+=position.xy*vec2(treeSX,treeSV);gl_Position=projectionMatrix*mvPosition;'+
+        'vec2 cellUV=clamp(uv,vec2(.003),vec2(.997));treeAtlasUV=(cellUV+treeFrame.xy)/vec2(8.0,4.0);');
+      sh.fragmentShader=sh.fragmentShader.replace('#include <common>','#include <common>\nvarying vec2 treeAtlasUV;');
+      sh.fragmentShader=sh.fragmentShader.replace('#include <map_fragment>','vec4 canopy=texture2D(map,treeAtlasUV);canopy.rgb/=max(canopy.a,.05);diffuseColor*=canopy;');
+    };
+    mat.customProgramCacheKey=()=> 'bavaria-multiview-tree-'+ei;
+    const m=new THREE.InstancedMesh(g,mat,cap);m.count=0;m.frustumCulled=false;m.castShadow=false;
+    m.instanceColor=new THREE.InstancedBufferAttribute(new Float32Array(cap*3),3);
+    m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);T3.scene.add(m);return m;
+  });
+  const techos=[];
   const escala = (i) => { const e = especies[SP[i]]; return Math.min(Hh[i] / e.alto, e.ancho / e.ancho0 || Hh[i] / e.alto); };
   especies.forEach(e => { e.ancho0 = e.ancho; });
   const esc = (i) => { const e = especies[SP[i]]; return KEN_A ? Hh[i] / e.alto : Math.min(Hh[i] / e.alto, ESPECIES_ARBOL[SP[i]].ancho / e.ancho); }; // simulador: la copa conserva la proporción del modelo real (llena, como en Unreal)
   const FM = new Float32Array(N * 16), FC = new Float32Array(N * 3);
-  const porte = (i) => { const v = VARIEDADES[VAR[i]], s = esc(i) * (KEN_A ? 0.82 + hash(i * 23 + 7) * 0.36 : 1), w = KEN_A ? 0.88 + hash(i * 29 + 3) * 0.26 : 1; d.scale.set(s * v.sx * w, s * v.sy, s * v.sx * (2 - w)); if (KEN_A) { d.rotation.x = (hash(i * 31 + 1) - 0.5) * 0.09; d.rotation.z = (hash(i * 37 + 5) - 0.5) * 0.09; } };
-  for (let i = 0; i < N; i++) { d.position.set(X[i], 0, Z[i]); d.rotation.set(0, ROT[i], 0); porte(i); d.updateMatrix(); FM.set(d.matrix.elements, i * 16); const tv = 0.88 + hash(i * 19) * 0.24, h = VARIEDADES[VAR[i]].h, g = (h[0] + h[1] + h[2]) / 3; const ok_ = KA ? 1.55 : 0.6; FC[i * 3] = tv * ok_ * (0.3 * h[0] + 0.7 * g) + (KA ? 0.05 : 0); FC[i * 3 + 1] = tv * ok_ * 0.98 * (0.3 * h[1] + 0.7 * g) + (KA ? 0.045 : 0); FC[i * 3 + 2] = tv * ok_ * (0.3 * h[2] + 0.7 * g) + (KA ? 0.05 : 0); } /* Kennedy: siluetas lejanas con el mismo color que el árbol de cerca */ // lejos: las siluetas no reciben luz (material básico), se oscurecen y apagan para igualar a los cercanos
-  const pintar = (lista, partes, k, i, tv) => { const h = VARIEDADES[VAR[i]].h, j = 0.96 + hash(i) * 0.08; lista.forEach((m, pi) => { if (partes[pi] && partes[pi].hoja) { const g = (h[0] + h[1] + h[2]) / 3; { const ad = KA ? 0.65 : 1; col.setRGB(tv * 1.14 * (0.3 * h[0] + 0.7 * g) + 0.07 * ad, tv * 1.04 * j * (0.3 * h[1] + 0.7 * g) + 0.06 * ad, tv * 1.1 * (0.3 * h[2] + 0.7 * g) + 0.07 * ad); } } else col.setRGB(tv * 0.92, tv * 0.88, tv * 0.84); if (OSC !== 1) col.multiplyScalar(OSC); m.setMatrixAt(k, d.matrix); m.setColorAt(k, col); }); };
-  const ult = { x: 1e9, z: 1e9, t: 0 }, cand = [];
+  const porte=(i)=>{
+    const e=especies[SP[i]],s=Hh[i]/e.alto,w=Rr[i]?Math.max(.55,Math.min(1.5,2*Rr[i]/(e.ancho*s))):1;
+    const variation=.96+hash(i*29+3)*.08;d.scale.set(s*w*variation,s,s*w/variation);
+    d.rotation.x=(hash(i*31+1)-.5)*.025;d.rotation.z=(hash(i*37+5)-.5)*.025;
+  };
+  for(let i=0;i<N;i++){
+    d.position.set(X[i],0,Z[i]);d.rotation.set(0,ROT[i],0);porte(i);d.updateMatrix();FM.set(d.matrix.elements,i*16);
+    const v=.94+hash(i*19)*.12;FC.set([v*.98,v,v*.94],i*3);
+  }
+  const pintar=(lista,partes,k,i,tv)=>{
+    const v=.94+hash(i*19)*.12;
+    lista.forEach((m,pi)=>{if(partes[pi]?.hoja)col.setRGB(v*.98,v,v*.94);else col.setRGB(.97,.95,.92);m.setMatrixAt(k,d.matrix);m.setColorAt(k,col);});
+  };
+  const ult = { x: 1e9, y:1e9, z: 1e9, t: 0 }, cand = [];
   const api = { ...api0, N, ribera, enParques, deCalle, especies: especies.map(e => e.base + ':' + e.niveles.L0.reduce((a, p) => a + (p.geo.index ? p.geo.index.count : p.geo.attributes.position.count) / 3, 0) + '/' + e.niveles.L1.reduce((a, p) => a + (p.geo.index ? p.geo.index.count : p.geo.attributes.position.count) / 3, 0)) };
-  api.pos = { X, Z, Hh }; // posiciones y alturas de los árboles (el modo pájaro pone los nidos en las copas)
+  api.pos = { X, Z, Hh, Rr }; // posiciones y alturas de los árboles (el modo pájaro pone los nidos en las copas)
   api.update = (cam, force) => {
-    const now = performance.now(), dx = cam.position.x - ult.x, dz = cam.position.z - ult.z, U = api.umbral || 6;
+    const now = performance.now(), dx = cam.position.x - ult.x, dy=cam.position.y-ult.y, dz = cam.position.z - ult.z, U = api.umbral || 6;
     const vy = cam.dir ? Math.atan2(cam.dir.x, cam.dir.z) : 0, giro = cam.dir ? Math.abs(Math.atan2(Math.sin(vy - (ult.vy || 0)), Math.cos(vy - (ult.vy || 0)))) : 0;
-    if (!force && ((dx * dx + dz * dz < U * U && giro < 0.3 && (api.quieto || now - ult.t < 1500)) || now - ult.t < (api.minMs || 0))) return; /* también al girar más de 17° */
-    const movio = dx * dx + dz * dz >= U * U;
-    ult.x = cam.position.x; ult.z = cam.position.z; ult.t = now; ult.vy = vy;
+    if (!force && ((dx * dx +dy*dy+ dz * dz < U * U && giro < 0.08 && Math.abs((cam.dir?.y||0)-(ult.pitch||0))<.06 && (api.quieto || now - ult.t < 1500)) || now - ult.t < (api.minMs || 0))) return; /* también al girar más de 17° */
+    const movio = dx * dx +dy*dy+ dz * dz >= U * U;
+    ult.x = cam.position.x;ult.y=cam.position.y;ult.pitch=cam.dir?.y||0; ult.z = cam.position.z; ult.t = now; ult.vy = vy;
     const CV = cam.cam, DV = cam.dir; /* árboles 3D solo hacia donde mira la cámara (±100°); detrás quedan las siluetas */
     const enVista = (i) => { if (!CV || !DV) return true; const ex = X[i] - CV.x, ez = Z[i] - CV.z, L = Math.hypot(ex, ez); return L < 60 || (ex * DV.x + ez * DV.z) / L > -0.17; };
     cand.length = 0;
@@ -472,15 +520,21 @@ export async function buildTrees(T3, T, W, lw, env, Pq, Net) {
     }
     bajos.forEach((m, tp) => { m.count = n2[tp]; m.instanceMatrix.needsUpdate = true; m.instanceColor.needsUpdate = true; });
     lod.forEach((l, s) => { l.L0.forEach(m => { m.count = n0[s]; m.instanceMatrix.needsUpdate = true; m.instanceColor.needsUpdate = true; }); l.L1.forEach(m => { m.count = n1[s]; m.instanceMatrix.needsUpdate = true; m.instanceColor.needsUpdate = true; }); });
-    if (!force && !movio && now - (ult.sil || 0) < 1500) return; /* solo girando: las siluetas lejanas (90 mil) no se re-suben en cada giro */
+    if (!force && !movio && giro<.08 && now - (ult.sil || 0) < 400) return; /* solo girando: las siluetas lejanas (90 mil) no se re-suben en cada giro */
     ult.sil = now;
     const nf = lejos.map(() => 0);
     for (let i = 0; i < N; i++) {
       if (asignado[i] || T3.splatLejos) continue; /* con copas splat lejanas no se dibujan las siluetas planas */
       const s = SP[i], k = nf[s]++, ca = lejos[s].instanceColor.array;
-      lejos[s].instanceMatrix.array.set(FM.subarray(i * 16, i * 16 + 16), k * 16); ca[k * 3] = FC[i * 3]; ca[k * 3 + 1] = FC[i * 3 + 1]; ca[k * 3 + 2] = FC[i * 3 + 2];
+      lejos[s].instanceMatrix.array.set(FM.subarray(i*16,i*16+16),k*16);ca.set(FC.subarray(i*3,i*3+3),k*3);
+      const camPos=CV||cam.position,ex=camPos.x-X[i],ez=camPos.z-Z[i],ey=camPos.y-Hh[i]/2;
+      const az=((Math.atan2(ex,ez)-ROT[i])/(Math.PI*2)+2)%1;
+      const elevation=Math.atan2(Math.max(0,ey),Math.max(.1,Math.hypot(ex,ez)));
+      let row=0,delta=Infinity;
+      especies[s].sil.elevation.forEach((angle,j)=>{const d=Math.abs(angle-elevation);if(d<delta){delta=d;row=j;}});
+      lejos[s].geometry.attributes.treeFrame.array.set([Math.round(az*8)%8,row,Math.sin(elevation)],k*3);
     }
-    lejos.forEach((m, s) => { m.count = nf[s]; m.instanceMatrix.needsUpdate = true; m.instanceColor.needsUpdate = true; const t = techos[s]; t.instanceMatrix.array.set(m.instanceMatrix.array.subarray(0, nf[s] * 16)); t.instanceColor.array.set(m.instanceColor.array.subarray(0, nf[s] * 3)); t.count = nf[s]; t.instanceMatrix.needsUpdate = true; t.instanceColor.needsUpdate = true; });
+    lejos.forEach((m,s)=>{m.count=nf[s];m.instanceMatrix.needsUpdate=true;m.instanceColor.needsUpdate=true;m.geometry.attributes.treeFrame.needsUpdate=true;});
     api.stats = { cerca: n0.join('+'), medio: n1.join('+'), bajos: n2.join('+'), siluetas: nf.join('+') };
   };
   api.update({ position: new THREE.Vector3(1e8, 0, 1e8) }, true);
