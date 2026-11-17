@@ -23,8 +23,8 @@ export function construirBavaria({ THREE, T3, lw, D, liviano }) {
   const textureLoader = new THREE.TextureLoader();
   const load = (name, color = false) => { const t = textureLoader.load('https://anasoficasca-code.github.io/simulador/data3d/textures/' + name + '.jpg'); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(.28,.28); if (color) t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = Math.min(T3.renderer.capabilities.getMaxAnisotropy(),8); return t; };
   const matLadrillo = new THREE.MeshStandardMaterial({ map: load('ladrillo_color',true), normalMap:load('ladrillo_normal'), normalScale:new THREE.Vector2(.45,.45),roughnessMap:load('ladrillo_rugosidad'), roughness: 0.92, metalness: 0, side: THREE.DoubleSide });
-  const matConcreto = new THREE.MeshStandardMaterial({ color: 0xb3aca2, roughness: 0.95, metalness: 0 }); // concreto envejecido, claro como en el video
-  const matCubierta = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, metalness: 0.05, side: THREE.DoubleSide }); // cada cubierta con su color de la foto satelital
+  const matConcreto = new THREE.MeshStandardMaterial({ color: 0xb3aca2, normalMap:load('via_normal'),normalScale:new THREE.Vector2(.16,.16), roughness: 0.95, metalness: 0 }); // concreto envejecido, claro como en el video
+  const matCubierta = new THREE.MeshStandardMaterial({ vertexColors: true, normalMap:load('via_normal'), normalScale:new THREE.Vector2(.3,.3), roughness: 0.94, metalness: 0.02, side: THREE.DoubleSide }); // cada cubierta con su color de la foto satelital
   // Broad weathering stays legible from the initial aerial distance.
   for(const material of [matCubierta,matConcreto]){
     material.onBeforeCompile=shader=>{
@@ -135,6 +135,7 @@ export function construirBavaria({ THREE, T3, lw, D, liviano }) {
     if (!A.i.length) return;
     const gg = new THREE.BufferGeometry(); gg.setAttribute('position', new THREE.Float32BufferAttribute(A.p, 3));
     if (uv) gg.setAttribute('uv', new THREE.Float32BufferAttribute(A.uv, 2));
+    else if(mat===matCubierta){const roofUV=[];for(let i=0;i<A.p.length;i+=3)roofUV.push(A.p[i],A.p[i+2]);gg.setAttribute('uv',new THREE.Float32BufferAttribute(roofUV,2));}
     if (A.c && A.c.length) gg.setAttribute('color', new THREE.Float32BufferAttribute(A.c, 3));
     gg.setIndex(A.i); gg.computeVertexNormals();
     const m = new THREE.Mesh(gg, mat); m.castShadow = sombras; m.receiveShadow = sombras; G.add(m);
