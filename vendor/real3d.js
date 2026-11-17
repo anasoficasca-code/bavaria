@@ -436,14 +436,14 @@ export async function buildTrees(T3, T, W, lw, env, Pq, Net) {
     for (const nv of MV ? ['L1'] : ['L0', 'L1']) niveles[nv].forEach(p => { p.geo.translate(-cx, -b.min.y, -cz); realzarMaterial(p.mat, env, p.hoja); if (p.hoja && T3.kenArboles) sombraCopa(p.geo, p.mat, alto, ancho); });
     const hojaRGB = colorPromedioHoja(niveles.L1) || colorPromedioHoja(niveles.L0) || [0.11, 0.17, 0.06];
     for (const nv of MV ? ['L1'] : ['L0', 'L1']) niveles[nv].forEach(p => { if (p.hoja) balanceo(p.mat, alto, T3); });
-    const sil = dibujarSiluetas(T3, niveles.L1, alto, ancho);
+    const sil = dibujarSiluetas(T3, niveles.L0, alto, ancho);
     especies.push({ ...E, niveles, alto, ancho, sil, hojaRGB });
   }
   // L0 modelo real completo (cerca) · L1 modelo real reducido (medio) · L2 arbol 3D de bajos poligonos (lejos) · siluetas sólo más allá de R2 o si se llena el cupo
   // la versión ligera (gafas VR, celulares: T3.liviano) usa menos árboles detallados y copas más simples; la completa muestra más modelos reales
   const KA = !!T3.kenArboles, LV = !!T3.liviano, CAP2 = LV ? 5000 : 10000, R0 = MV ? 0 : LV ? 45 : 95, R1 = MV ? 140 : LV ? 190 : 320, OSC = 1, /* Kennedy: reales hasta 900 m, más oscuros (igual de cerca y de lejos) */ /* Kennedy: reales hasta 420 m (más oscuros); más lejos, copas tipo splat (arboles_splat.js) */ R2 = LV ? 1200 : 2200, d = new THREE.Object3D(), col = new THREE.Color();
-  const CAP0S = especies.map(e => MV ? 1 : e.base === 'arbolpeq' ? 5 : 12); // Close scans only; farther trees retain their photographed silhouettes.
-  const CAP1S = especies.map(e => MV ? 12 : e.base === 'arbolpeq' ? 28 : 60); // Bound geometry work while preserving all original tree positions.
+  const CAP0S = especies.map(e => MV ? 2 : 48); // Close scans only; farther trees retain their photographed silhouettes.
+  const CAP1S = especies.map(e => MV ? 12 : 72); // Bound geometry work while preserving all original tree positions.
   const TIPO_BAJO = especies.map(e => (e.base === 'arbolpeq' || e.base === 'island_tree_02') ? 1 : 0);
   const matBajo = materialArbolBajo(T3), REF = [0.17, 0.255, 0.0875]; // REF = verde medio del degradado de vértices
   const USAR_BAJOS = false; // las copas de bajos polígonos se veían como bolas verdes al alejar la cámara: lejos ahora se dibuja el mismo árbol real (fotos desde el lado y desde arriba)
@@ -501,17 +501,17 @@ export async function buildTrees(T3, T, W, lw, env, Pq, Net) {
     const movio = dx * dx +dy*dy+ dz * dz >= U * U;
     ult.x = cam.position.x;ult.y=cam.position.y;ult.pitch=cam.dir?.y||0; ult.z = cam.position.z; ult.t = now; ult.vy = vy;
     const CV = cam.cam, DV = cam.dir; /* árboles 3D solo hacia donde mira la cámara (±100°); detrás quedan las siluetas */
-    const enVista = (i) => { if (!CV || !DV) return true; const ex = X[i] - CV.x, ez = Z[i] - CV.z, L = Math.hypot(ex, ez); return L < 60 || (ex * DV.x + ez * DV.z) / L > -0.17; };
+    const enVista=(i)=>{if(!CV||!DV)return true;const ex=X[i]-CV.x,ey=Hh[i]*.5-CV.y,ez=Z[i]-CV.z,L=Math.hypot(ex,ey,ez),radius=Rr[i]||5;return L<radius*1.5||(ex*DV.x+ey*DV.y+ez*DV.z)/Math.max(L,1)>.72-radius/Math.max(L,1);};
     cand.length = 0;
     for (let i = 0; i < N; i++) { const ex = X[i] - ult.x, ez = Z[i] - ult.z, d2 = ex * ex + ez * ez; if (d2 < R2 * R2) cand.push([i, d2]); }
     cand.sort((a, b) => a[1] - b[1]);
     const n0 = lod.map(() => 0), n1 = lod.map(() => 0), n2 = especies.map(() => 0), asignado = new Uint8Array(N);
-    let tot2 = 0;
+    let tot2 = 0,tot0=0,tot1=0;
     for (const [i, d2] of cand) {
       const s = SP[i], sc = esc(i), tv = 0.82 + hash(i * 19) * 0.34;
       if (!enVista(i)) continue;
-      if (d2 < R0 * R0 && n0[s] < CAP0S[s]) { d.position.set(X[i], 0, Z[i]); d.rotation.set(0, ROT[i], 0); porte(i); d.updateMatrix(); const k = n0[s]++; pintar(lod[s].L0, especies[s].niveles.L0, k, i, tv); asignado[i] = 1; }
-      else if (d2 < R1 * R1 && n1[s] < CAP1S[s]) { d.position.set(X[i], 0, Z[i]); d.rotation.set(0, ROT[i], 0); porte(i); d.updateMatrix(); const k = n1[s]++; pintar(lod[s].L1, especies[s].niveles.L1, k, i, tv); asignado[i] = 1; }
+      if (d2 < R0 * R0 && n0[s] < CAP0S[s] && tot0<(MV?6:48)) { d.position.set(X[i], 0, Z[i]); d.rotation.set(0, ROT[i], 0); porte(i); d.updateMatrix(); tot0++;const k = n0[s]++; pintar(lod[s].L0, especies[s].niveles.L0, k, i, tv); asignado[i] = 1; }
+      else if (d2 < R1 * R1 && n1[s] < CAP1S[s] && tot1<(MV?32:120)) { d.position.set(X[i], 0, Z[i]); d.rotation.set(0, ROT[i], 0); porte(i); d.updateMatrix(); tot1++;const k = n1[s]++; pintar(lod[s].L1, especies[s].niveles.L1, k, i, tv); asignado[i] = 1; }
       else if (USAR_BAJOS && tot2 < CAP2) { // arbol 3D de bajos poligonos con el mismo alto y ancho de copa que tendria el modelo real
         const e = especies[s], w = e.ancho * sc, h = e.alto * sc, ti = TINTE_BAJO[s], hv = 0.96 + hash(i) * 0.08;
         d.position.set(X[i], 0, Z[i]); d.rotation.set(0, ROT[i], 0); d.scale.set(w, h, w); d.updateMatrix(); col.setRGB(tv * ti[0] * 0.86, tv * hv * ti[1] * 1.0, tv * 0.94 * ti[2] * 0.86);
