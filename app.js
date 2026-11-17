@@ -64,7 +64,7 @@ function groundSurface(geometry,data,forest){
 function poly(points){return new THREE.Shape(points.map(p=>{const q=lw(...p);return new THREE.Vector2(q[0],-q[1])}));}
 function reveal(title,text,label='BAVARIA COMÚN'){$('detail-title').textContent=title;$('detail-text').textContent=text;$('detail-number').textContent=label;$('detail').hidden=false;explore();}
 function explore(){document.body.classList.add('exploring');$('hero').classList.add('hidden');}
-function fly(index,instant=false){const v=views[index];if(!v)return;move=null;orbit.autoRotate=false;$('tour').setAttribute('aria-pressed','false');document.querySelectorAll('[data-view]').forEach(b=>b.classList.toggle('active',Number(b.dataset.view)===index));if(instant||reduced){camera.position.fromArray(v.p);orbit.target.fromArray(v.t);orbit.update();}else move={time:0,from:camera.position.clone(),to:new THREE.Vector3(...v.p),fromTarget:orbit.target.clone(),toTarget:new THREE.Vector3(...v.t)};if(index>0)explore();}
+function fly(index,instant=false){const v=views[index];if(!v)return;move=null;orbit.autoRotate=false;$('tour').setAttribute('aria-pressed','false');document.querySelectorAll('[data-view]').forEach(b=>b.classList.toggle('active',Number(b.dataset.view)===index));if(instant||reduced){camera.position.fromArray(v.p);orbit.target.fromArray(v.t);orbit.update();}else move={started:performance.now(),from:camera.position.clone(),to:new THREE.Vector3(...v.p),fromTarget:orbit.target.clone(),toTarget:new THREE.Vector3(...v.t)};api.cameraMoving=!!move;if(index>0)explore();}
 function setMode(photo){
  wantPhoto=photo;if(photo&&sceneData&&!photoLoading){photoLoading=true;setupPhoto(sceneData);}const usePhoto=photo&&photoAvailable;api.mode=usePhoto?'photo':'model';
  if(environment)environment.setPhotographic(usePhoto);
@@ -128,7 +128,7 @@ function bind(){
  document.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>{fly(Number(b.dataset.view));$('menu-panel').hidden=true;$('menu').setAttribute('aria-expanded','false')});
  $('menu').onclick=()=>{const on=$('menu-panel').hidden;$('menu-panel').hidden=!on;$('menu').setAttribute('aria-expanded',String(on))};
  document.addEventListener('keydown',e=>{if(e.key==='Escape'){$('detail').hidden=true;$('menu-panel').hidden=true;$('menu').setAttribute('aria-expanded','false')}});
- document.addEventListener('visibilitychange',()=>{last=performance.now();});
+ document.addEventListener('visibilitychange',()=>{last=performance.now();if(move)move.started=last;});
  let down;renderer.domElement.addEventListener('pointerdown',e=>{down=[e.clientX,e.clientY];move=null;orbit.autoRotate=false;$('tour').setAttribute('aria-pressed','false');explore()});
  renderer.domElement.addEventListener('pointercancel',()=>{down=null;});
  renderer.domElement.addEventListener('pointerup',e=>{if(!down||Math.hypot(e.clientX-down[0],e.clientY-down[1])>6)return;const r=renderer.domElement.getBoundingClientRect();ndc.set((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1);pickRay.setFromCamera(ndc,camera);const hit=pickRay.intersectObjects(picks)[0];if(hit){const d=hit.object.userData;reveal(d.title,d.text,d.label);}});
@@ -168,8 +168,8 @@ async function init(){
  renderer.setAnimationLoop(now=>{
  if(document.hidden){last=now;return;}
  const dt=Math.min((now-last)/1000,.05);last=now;frame++;T3.waterU.value+=reduced?0:dt;
- if(move){move.time+=dt;const t=Math.min(1,move.time/2.4),e=t*t*(3-2*t);camera.position.lerpVectors(move.from,move.to,e);orbit.target.lerpVectors(move.fromTarget,move.toTarget,e);if(t===1)move=null;}
- if(!move)orbit.update();else camera.lookAt(orbit.target);camera.updateMatrixWorld();environment.update(camera);
+ if(move){const t=Math.min(1,(now-move.started)/2400),e=t*t*(3-2*t);camera.position.lerpVectors(move.from,move.to,e);orbit.target.lerpVectors(move.fromTarget,move.toTarget,e);if(t===1)move=null;}
+ api.cameraMoving=!!move;api.cameraPosition=camera.position.toArray();if(!move)orbit.update();else camera.lookAt(orbit.target);camera.updateMatrixWorld();environment.update(camera);
  if(tiles){tiles.setResolutionFromRenderer(camera,renderer);tiles.update();
  const visible=tiles.visibleTiles?.size||0;api.visibleTiles=visible;
  const age=now-photoStarted;
